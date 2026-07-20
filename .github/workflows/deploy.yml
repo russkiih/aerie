@@ -1,0 +1,53 @@
+name: Deploy to Firebase Hosting
+
+# Auto-deploys the live app to https://aerie-dashboard-app.web.app.
+#   • every push to main (e.g. merging a PR from the GitHub mobile app)
+#   • or manually from the Actions tab ("Run workflow")
+# Requires one repo secret: FIREBASE_SERVICE_ACCOUNT (a Firebase service-account
+# JSON). The build itself needs no secrets — the Google Client ID ships in the
+# client bundle with a committed fallback.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never run two production deploys at once; a newer push supersedes an older run.
+concurrency:
+  group: hosting-live
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Build static export
+        working-directory: web
+        run: npm run build
+        env:
+          # Marks this as the hosted cloud build — enables free-tier gating.
+          # Self-hosted builds (no env var) are always fully unlocked.
+          NEXT_PUBLIC_AERIE_CLOUD: "1"
+
+      - name: Deploy to Firebase Hosting (live channel)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: aerie-dashboard-app
+          channelId: live

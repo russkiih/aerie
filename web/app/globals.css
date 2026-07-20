@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: #1b1917;
+  color: #f5f0e8;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Warm ember glow at the top — depth without decoration */
+body {
+  background-image: radial-gradient(
+    1100px 560px at 50% -14%,
+    rgba(217, 119, 87, 0.08),
+    transparent 62%
+  );
+}
+
+::selection {
+  background: rgba(217, 119, 87, 0.28);
+}
+
+/* quiet scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3a342d transparent;
+}
+*::-webkit-scrollbar {
+  height: 9px;
+  width: 9px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #3a342d;
+  border-radius: 9px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(90deg, #1c1916 0%, #282420 50%, #1c1916 100%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes overlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.overlay-in {
+  animation: overlayIn 0.18s ease;
+}
+.modal-in {
+  animation: modalIn 0.22s cubic-bezier(0.2, 0.7, 0.3, 1);
+}

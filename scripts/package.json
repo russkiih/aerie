@@ -1,0 +1,14 @@
+{
+  "name": "@aerie/scripts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Data collectors and the end-to-end verification harness for the Aerie dashboard.",
+  "scripts": {
+    "verify": "node verify-live.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "playwright-core": "^1.49.0"
+  }
+}

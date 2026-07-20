@@ -1,0 +1,19 @@
+{
+  "hosting": {
+    "site": "aerie-dashboard-app",
+    "public": "web/out",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "trailingSlash": true,
+    "headers": [
+      {
+        "source": "**/*.@(js|css|woff2|svg|png|jpg|webp)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      }
+    ]
+  }
+}

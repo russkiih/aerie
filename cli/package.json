@@ -1,0 +1,14 @@
+{
+  "name": "@aerie/cli",
+  "version": "0.1.0",
+  "description": "One terminal view of every Firebase project you own.",
+  "type": "module",
+  "bin": {
+    "aerie": "./aerie.mjs"
+  },
+  "files": ["aerie.mjs", "../core/reader.mjs"],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "AGPL-3.0"
+}
