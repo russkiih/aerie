@@ -31,6 +31,9 @@ export function clearProjectErrors(projectId: string) {
 function record(api: string, project: string, e: any) {
   liveErrors.push({ api, project, detail: String(e?.message || e).slice(0, 300) });
 }
+// Shared with other readers (lib/billing.ts) so every failure lands in the
+// same diagnostics stream.
+export const recordLiveError = record;
 
 export interface LiveApp {
   id: string;
@@ -141,7 +144,7 @@ export interface LiveProject {
   traffic: LiveTraffic | null;
 }
 
-async function gfetch<T>(
+export async function gfetch<T>(
   url: string,
   token: string,
   init?: RequestInit & { quota?: boolean }

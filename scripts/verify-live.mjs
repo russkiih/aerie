@@ -169,6 +169,28 @@ await ctx.route(/googleapis\.com/, async (route) => {
     });
   }
 
+  // Billing Watchdog mocks. The Monitoring URL embeds metric types like
+  // "storage.googleapis.com/…" in its filter param, so this branch must run
+  // BEFORE the service-list branches below or they'd swallow the request.
+  if (url.includes("monitoring.googleapis.com")) {
+    const filter = decodeURIComponent(url);
+    const mkPoints = (fn) =>
+      Array.from({ length: 28 }, (_, i) => ({
+        interval: { endTime: new Date(Date.now() - (27 - i) * 86400000).toISOString() },
+        value: { int64Value: String(fn(i)) },
+      }));
+    let pts = [];
+    // Firestore reads spike ~6.7x in the last 7 days — must trip the watchdog
+    if (filter.includes("document/read_count")) pts = mkPoints((i) => (i >= 21 ? 400000 : 60000));
+    else if (filter.includes("document/write_count")) pts = mkPoints(() => 9000);
+    else if (filter.includes("function/execution_count")) pts = mkPoints(() => 20000);
+    else if (filter.includes("sent_bytes_count")) pts = mkPoints(() => 40 * 1024 * 1024);
+    else if (filter.includes("storage/total_bytes")) pts = mkPoints(() => 2 * 1024 ** 3);
+    return j(route, { timeSeries: pts.length ? [{ points: pts }] : [] });
+  }
+  if (url.includes("cloudbilling.googleapis.com"))
+    return j(route, { billingEnabled: true, billingAccountName: "billingAccounts/ABC-123" });
+
   if (url.includes("cloudfunctions")) return j(route, { functions: Array.from({ length: d.fns }, (_, i) => ({ name: `p/f/fn-${i}` })) });
   if (url.includes("storage.googleapis.com")) return j(route, { items: [{ name: `${d.id}-uploads` }] });
   if (url.includes("firebasehosting")) return j(route, { sites: [{ siteId: d.id }] });
@@ -313,6 +335,15 @@ console.log(
     : "MISSING pro unlock"
 );
 
+// billing watchdog: on-demand estate scan (plan + meters + spike flags)
+await page.getByText("Scan estate").click();
+await page.waitForSelector("text=est. usage cost across the estate", { timeout: 15000 });
+for (const needle of ["Billing watchdog", "Blaze · pay-as-you-go", "1 spike", "Firestore reads ×"]) {
+  const n = await page.getByText(needle).count();
+  console.log(`${n > 0 ? "OK " : "MISSING"} watchdog: ${needle}`);
+}
+await page.screenshot({ path: "watchdog.png", fullPage: true });
+
 await page.locator("text=TakeoffConvert").first().click();
 await page.waitForSelector("text=Breakdowns", { timeout: 20000 });
 
@@ -338,6 +369,12 @@ await page.screenshot({ path: "live-modal.png", fullPage: true });
 for (const needle of ["Pages", "Sources", "Countries", "Devices", "Operating systems", "/app/estimate", "google", "United States", "desktop", "Linux", "7 online", "Events", "page_view", "estimate_created", "Count"]) {
   const n = await page.getByText(needle).count();
   console.log(`${n > 0 ? "OK " : "MISSING"} ${needle}`);
+}
+
+// per-project billing panel inside the modal
+for (const needle of ["Billing watchdog · 28d", "Function invocations", "est. usage cost · list prices"]) {
+  const n = await page.getByText(needle).count();
+  console.log(`${n > 0 ? "OK " : "MISSING"} modal billing: ${needle}`);
 }
 
 // scroll the fixed overlay so the Traffic sources grid is in view

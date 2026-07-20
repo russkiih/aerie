@@ -35,6 +35,13 @@ $19 month-to-month) unlocks unlimited projects and the hosted AI analyst.
   countries, devices, operating systems, events, sign-in methods), Firestore
   collections + document counts, and the rest of the estate: Cloud Functions,
   Storage buckets, Hosting sites, and Realtime Database instances.
+- **Billing Watchdog** — per project: billing plan (Blaze/Spark), the billable
+  usage meters (Firestore reads/writes/deletes, Function invocations, Hosting &
+  Realtime DB bandwidth, Cloud Storage bytes) over the last 28 days, an
+  estimated usage cost (list prices, free tier applied), and **spike warnings**
+  when a meter jumps week-over-week — the "wake up to a huge Firebase bill"
+  early-warning. Also an estate-wide on-demand scan on the overview. Estimates
+  only — Google exposes no exact-spend API without a BigQuery billing export.
 - **AI analyst** — one click streams ranked insights + recommended actions
   from the project's real numbers. Bring your own key from Anthropic, OpenAI,
   Google Gemini, xAI or Groq (auto-detected by prefix); the key lives in your
@@ -56,13 +63,19 @@ $19 month-to-month) unlocks unlimited projects and the hosted AI analyst.
 - **GA4 Data API** (`runReport`) — active users, new users, events, views.
 - **Cloud Functions / Cloud Storage / Firebase Hosting / Realtime Database** —
   per-project resource lists, read lazily on the detail view.
+- **Cloud Billing API** (`projects/*/billingInfo`) — whether billing is
+  attached (Blaze vs Spark). Read-only; no spend data.
+- **Cloud Monitoring API** (`timeSeries.list`) — daily billable usage meters
+  for the Billing Watchdog. Cost figures are estimated client-side from list
+  prices; nothing is stored.
 
 ### Deploy your own
 
 Static export to Firebase Hosting (Spark/free). You need a Google OAuth **Web
 Client ID** (set `NEXT_PUBLIC_GOOGLE_CLIENT_ID`) and these APIs enabled on the
 hosting project: Firebase Management, Cloud Firestore, Identity Toolkit, Google
-Analytics Data. Then `cd web && npm run build && firebase deploy --only hosting`.
+Analytics Data — plus Cloud Billing and Cloud Monitoring for the Billing
+Watchdog. Then `cd web && npm run build && firebase deploy --only hosting`.
 
 **Automated deploys.** `.github/workflows/deploy.yml` builds the static export
 and deploys to the live channel on every push to `main` (or a manual *Run

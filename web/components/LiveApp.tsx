@@ -45,6 +45,14 @@ import {
 } from "@/components/charts";
 import { buildSnapshot, buildCsv, downloadFile } from "@/lib/export";
 import {
+  fetchProjectBilling,
+  fmtBytes,
+  fmtUsd,
+  spikeRatio,
+  type ProjectBilling,
+  type CostDriver,
+} from "@/lib/billing";
+import {
   getAnalystKey,
   setAnalystKey,
   clearAnalystKey,
@@ -708,6 +716,15 @@ export default function LiveApp() {
         </Card>
       </div>
 
+      {/* estate-wide billing watchdog — on-demand scan, nothing stored */}
+      {phase === "ready" && token && (
+        <WatchdogCard
+          projects={projects}
+          token={token}
+          onOpen={(id) => setSelected(id)}
+        />
+      )}
+
       <div className="mb-4 mt-[30px] flex flex-wrap items-center gap-[11px]">
         <div className="relative min-w-[220px] flex-1">
           <svg
@@ -947,6 +964,248 @@ function Diagnostics({ errors }: { errors: LiveError[] }) {
   );
 }
 
+// Billing plan chip — Blaze (billing attached, can spend) vs Spark (can't).
+function PlanBadge({ billing }: { billing: ProjectBilling | null }) {
+  const info = billing?.info;
+  if (!info)
+    return (
+      <span className="rounded-full border border-line bg-panel2 px-2.5 py-[3px] text-[10px] font-semibold uppercase tracking-[.06em] text-fainter">
+        plan —
+      </span>
+    );
+  return info.enabled ? (
+    <span className="rounded-full bg-warn/15 px-2.5 py-[3px] text-[10px] font-semibold uppercase tracking-[.06em] text-warn">
+      Blaze · pay-as-you-go
+    </span>
+  ) : (
+    <span className="rounded-full bg-ok/15 px-2.5 py-[3px] text-[10px] font-semibold uppercase tracking-[.06em] text-ok">
+      Spark · no billing
+    </span>
+  );
+}
+
+const fmtDriver = (d: CostDriver, n: number) =>
+  d.bytes ? fmtBytes(n) : compact(Math.round(n));
+
+// "Firestore reads ×4.2 vs prior week" — the actionable line of the watchdog.
+function SpikeLine({ d }: { d: CostDriver }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-warn">
+      ⚠ {d.label} ×{spikeRatio(d).toFixed(1)} vs prior week (
+      {fmtDriver(d, d.last7)}
+      {d.gauge ? " avg" : ""} last 7d)
+    </span>
+  );
+}
+
+// Estate-wide Billing Watchdog — an on-demand scan (per project: billing plan
+// + the billable usage meters from Cloud Monitoring) that estimates 28-day
+// cost from list prices and flags week-over-week spikes. Everything happens
+// in the browser; results live in component state only.
+function WatchdogCard({
+  projects,
+  token,
+  onOpen,
+}: {
+  projects: LiveProject[];
+  token: string;
+  onOpen: (id: string) => void;
+}) {
+  const [results, setResults] = useState<Record<string, ProjectBilling>>({});
+  const [scan, setScan] = useState<"idle" | "scanning" | "done">("idle");
+  const [done, setDone] = useState(0);
+
+  async function runScan() {
+    setScan("scanning");
+    setResults({});
+    setDone(0);
+    await Promise.all(
+      projects.map(async (p) => {
+        const b = await fetchProjectBilling(token, p.id);
+        setResults((prev) => ({ ...prev, [p.id]: b }));
+        setDone((d) => d + 1);
+      })
+    );
+    setScan("done");
+  }
+
+  const rows = projects
+    .map((p) => ({ p, b: results[p.id] }))
+    .filter((r): r is { p: LiveProject; b: ProjectBilling } => Boolean(r.b))
+    .sort(
+      (a, b) =>
+        b.b.spikes.length - a.b.spikes.length ||
+        b.b.estMonthly - a.b.estMonthly ||
+        b.b.drivers.length - a.b.drivers.length
+    );
+  const totalEst = rows.reduce((s, r) => s + r.b.estMonthly, 0);
+  const spikeCount = rows.reduce((s, r) => s + r.b.spikes.length, 0);
+
+  return (
+    <div className="mt-[14px]">
+      <Card className="rounded-[20px] p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="text-[10.5px] font-semibold uppercase tracking-[.11em] text-faint">
+              Billing watchdog
+            </div>
+            {scan === "done" ? (
+              <div className="mt-2.5 flex items-baseline gap-[11px]">
+                <div className="text-4xl font-semibold leading-none tracking-[-.03em] tabular-nums text-ink">
+                  {fmtUsd(totalEst)}
+                </div>
+                <span
+                  className={`inline-flex items-center rounded-full px-[9px] py-[3px] text-xs font-semibold ${
+                    spikeCount > 0
+                      ? "bg-warn/15 text-warn"
+                      : "bg-ok/15 text-ok"
+                  }`}
+                >
+                  {spikeCount > 0
+                    ? `${spikeCount} spike${spikeCount === 1 ? "" : "s"}`
+                    : "no spikes"}
+                </span>
+              </div>
+            ) : (
+              <p className="mt-2 max-w-md text-[12.5px] leading-relaxed text-muted">
+                Scan every project&apos;s billable meters — Firestore
+                reads/writes, Function invocations, Hosting &amp; Realtime DB
+                bandwidth, Storage — for estimated cost and sudden usage
+                spikes. Read live in your browser, nothing stored.
+              </p>
+            )}
+            {scan === "done" && (
+              <div className="mt-[7px] text-xs font-medium text-faint">
+                est. usage cost across the estate · last 28d · list prices,
+                free tier applied
+              </div>
+            )}
+          </div>
+          <button
+            onClick={runScan}
+            disabled={scan === "scanning"}
+            className={headerBtn}
+          >
+            {scan === "scanning"
+              ? `Scanning ${done}/${projects.length}…`
+              : scan === "done"
+              ? "Rescan"
+              : "Scan estate"}
+          </button>
+        </div>
+
+        {scan !== "idle" && rows.length > 0 && (
+          <div className="mt-5 flex flex-col">
+            {rows.map(({ p, b }) => (
+              <button
+                key={p.id}
+                onClick={() => onOpen(p.id)}
+                className="group flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line2 py-[9px] text-left last:border-b-0"
+              >
+                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink group-hover:text-accent">
+                  {p.name}
+                </span>
+                <PlanBadge billing={b} />
+                <span className="w-16 text-right font-mono text-[12.5px] font-semibold tabular-nums text-ink">
+                  {fmtUsd(b.estMonthly)}
+                </span>
+                {b.spikes.length > 0 && (
+                  <span className="flex w-full flex-col gap-0.5 pl-1 sm:w-auto sm:pl-0">
+                    {b.spikes.map((d) => (
+                      <SpikeLine key={d.key} d={d} />
+                    ))}
+                  </span>
+                )}
+                {b.spikes.length === 0 && b.drivers[0] && (
+                  <span className="hidden text-[11px] font-medium text-faint sm:inline">
+                    top: {b.drivers[0].label} ·{" "}
+                    {fmtDriver(b.drivers[0], b.drivers[0].total28d)}
+                    {b.drivers[0].gauge ? " avg" : " / 28d"}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+        {scan === "done" && rows.every(({ b }) => b.drivers.length === 0) && (
+          <p className="mt-4 text-[12px] leading-relaxed text-faint">
+            No usage data came back. Projects with no billable activity are
+            normal here; if every project is blank, the Cloud Monitoring API
+            may not be enabled for your quota project (check Diagnostics
+            below).
+          </p>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// Per-project billing panel inside the detail modal — plan, spike warnings,
+// and each active meter with usage + estimated cost over the last 28 days.
+function BillingSection({ billing }: { billing: ProjectBilling | null }) {
+  if (billing === null)
+    return <div className="skeleton mt-6 h-24 rounded-[13px]" />;
+  const { drivers, spikes } = billing;
+  return (
+    <div className="mt-6 rounded-[13px] border border-line bg-tile p-4">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[10.5px] font-semibold uppercase tracking-[.11em] text-faint">
+          Billing watchdog · 28d
+        </span>
+        <PlanBadge billing={billing} />
+      </div>
+      {spikes.length > 0 && (
+        <div className="mt-3 flex flex-col gap-1 rounded-[9px] border border-warn/30 bg-warn/5 px-3 py-2">
+          {spikes.map((d) => (
+            <SpikeLine key={d.key} d={d} />
+          ))}
+        </div>
+      )}
+      {drivers.length > 0 ? (
+        <>
+          <div className="mt-3 flex flex-col">
+            {drivers.map((d) => (
+              <div
+                key={d.key}
+                className="flex items-center justify-between gap-3 border-b border-[#26221d] py-[7px] last:border-b-0"
+              >
+                <span className="text-[12px] font-medium text-muted">
+                  {d.label}
+                </span>
+                <span className="flex items-baseline gap-3">
+                  <span className="font-mono text-[12px] tabular-nums text-ink">
+                    {fmtDriver(d, d.total28d)}
+                    {d.gauge ? " avg" : ""}
+                  </span>
+                  <span className="w-14 text-right font-mono text-[12px] font-medium tabular-nums text-ink">
+                    {fmtUsd(d.estCost28d)}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2.5 flex items-center justify-between">
+            <span className="text-[11px] font-medium text-faint">
+              est. usage cost · list prices, free tier applied — see console
+              for exact billing
+            </span>
+            <span className="font-mono text-[13px] font-semibold tabular-nums text-ink">
+              {fmtUsd(billing.estMonthly)}
+            </span>
+          </div>
+        </>
+      ) : (
+        <p className="mt-3 text-[12px] leading-relaxed text-faint">
+          No billable usage in the last 28 days
+          {billing.info?.enabled === false
+            ? " — and no billing account attached, so this project can't spend."
+            : "."}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // One breakdown tile (Pages / Sources / Countries / …): ranked rows with a
 // proportional fill bar behind each label, Vercel-style, in the warm palette.
 function BreakdownPanel({
@@ -1052,6 +1311,7 @@ function DetailModal({
   const [loadingBd, setLoadingBd] = useState(false);
   const [range, setRange] = useState<TrafficRange>(28);
   const [services, setServices] = useState<ProjectServices | null>(null);
+  const [billing, setBilling] = useState<ProjectBilling | null>(null);
   const [sources, setSources] = useState<TrafficBreakdown | null>(null);
   const [online, setOnline] = useState<number | null>(null);
   const [chartMetric, setChartMetric] = useState<"active" | "signups">(
@@ -1174,6 +1434,20 @@ function DetailModal({
     if (token) {
       fetchProjectServices(token, project.id).then((s) => {
         if (alive) setServices(s);
+      });
+    }
+    return () => {
+      alive = false;
+    };
+  }, [token, project.id]);
+
+  // Billing watchdog — plan + billable usage meters, lazy like the services.
+  useEffect(() => {
+    let alive = true;
+    setBilling(null);
+    if (token) {
+      fetchProjectBilling(token, project.id).then((b) => {
+        if (alive) setBilling(b);
       });
     }
     return () => {
@@ -1549,6 +1823,9 @@ function DetailModal({
             </div>
           </div>
         ) : null}
+
+        {/* billing watchdog — plan, cost drivers and spike warnings */}
+        <BillingSection billing={billing} />
 
         {project.firestore && project.firestore.collections.length > 0 && (
           <div className="mt-6">
