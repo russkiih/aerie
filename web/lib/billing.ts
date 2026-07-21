@@ -124,14 +124,23 @@ const METERS: MeterSpec[] = [
   },
 ];
 
-// GET with the standard quota-project → target-project fallback used by the
-// GA4 reads (the quota project needs the API enabled; if not, the project's
-// own quota often works).
-async function gget<T>(token: string, url: string): Promise<T> {
+// GET with a quota-project fallback, same idea as the GA4 reads: try one
+// quota source, fall back to the other. `quotaFirst` picks the order.
+//
+// Monitoring passes false. timeSeries.list is a paid-tier method and rejects
+// any request whose *quota* project has no billing account attached — the
+// hosted quota project runs on Spark, so leading with the quota header there
+// costs a guaranteed 403 before the retry. Going direct first turns two
+// requests per meter back into one (7 meters × every project on a scan).
+async function gget<T>(
+  token: string,
+  url: string,
+  quotaFirst = true
+): Promise<T> {
   try {
-    return await gfetch<T>(url, token, { quota: true });
+    return await gfetch<T>(url, token, { quota: quotaFirst });
   } catch {
-    return await gfetch<T>(url, token, { quota: false });
+    return await gfetch<T>(url, token, { quota: !quotaFirst });
   }
 }
 
@@ -178,7 +187,8 @@ async function fetchMeter(
   try {
     data = await gget(
       token,
-      `https://monitoring.googleapis.com/v3/projects/${projectId}/timeSeries?${params}`
+      `https://monitoring.googleapis.com/v3/projects/${projectId}/timeSeries?${params}`,
+      false
     );
   } catch (e) {
     recordLiveError("usage", `${projectId}/${spec.key}`, e);

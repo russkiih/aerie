@@ -269,6 +269,7 @@ function UpgradeModal({
           {[
             "Unlimited projects",
             "7 / 28 / 90-day traffic windows",
+            "Billing watchdog — cost estimates & spike alerts",
             "AI analyst included when billing launches",
             "Alerts & weekly digest (coming)",
           ].map((it) => (
@@ -721,7 +722,9 @@ export default function LiveApp() {
         <WatchdogCard
           projects={projects}
           token={token}
+          pro={pro}
           onOpen={(id) => setSelected(id)}
+          onLocked={() => setShowUpgrade(true)}
         />
       )}
 
@@ -1002,14 +1005,23 @@ function SpikeLine({ d }: { d: CostDriver }) {
 // + the billable usage meters from Cloud Monitoring) that estimates 28-day
 // cost from list prices and flags week-over-week spikes. Everything happens
 // in the browser; results live in component state only.
+//
+// Pro-only on the hosted cloud tier: the free tier caps the project grid at
+// FREE_PROJECT_LIMIT, so an ungated estate scan would name and price the very
+// projects that cap is hiding. Self-hosted builds are always "pro" and get the
+// full scan — see lib/tier.ts.
 function WatchdogCard({
   projects,
   token,
+  pro,
   onOpen,
+  onLocked,
 }: {
   projects: LiveProject[];
   token: string;
+  pro: boolean;
   onOpen: (id: string) => void;
+  onLocked: () => void;
 }) {
   const [results, setResults] = useState<Record<string, ProjectBilling>>({});
   const [scan, setScan] = useState<"idle" | "scanning" | "done">("idle");
@@ -1072,6 +1084,12 @@ function WatchdogCard({
                 reads/writes, Function invocations, Hosting &amp; Realtime DB
                 bandwidth, Storage — for estimated cost and sudden usage
                 spikes. Read live in your browser, nothing stored.
+                {!pro && (
+                  <span className="text-faint">
+                    {" "}
+                    Cloud Pro covers every project on your account.
+                  </span>
+                )}
               </p>
             )}
             {scan === "done" && (
@@ -1081,17 +1099,26 @@ function WatchdogCard({
               </div>
             )}
           </div>
-          <button
-            onClick={runScan}
-            disabled={scan === "scanning"}
-            className={headerBtn}
-          >
-            {scan === "scanning"
-              ? `Scanning ${done}/${projects.length}…`
-              : scan === "done"
-              ? "Rescan"
-              : "Scan estate"}
-          </button>
+          {pro ? (
+            <button
+              onClick={runScan}
+              disabled={scan === "scanning"}
+              className={headerBtn}
+            >
+              {scan === "scanning"
+                ? `Scanning ${done}/${projects.length}…`
+                : scan === "done"
+                ? "Rescan"
+                : "Scan estate"}
+            </button>
+          ) : (
+            <button
+              onClick={onLocked}
+              className="shrink-0 rounded-[10px] bg-accent px-4 py-2 text-[12px] font-semibold text-paper transition-opacity hover:opacity-90"
+            >
+              Unlock with Pro
+            </button>
+          )}
         </div>
 
         {scan !== "idle" && rows.length > 0 && (
@@ -1442,10 +1469,11 @@ function DetailModal({
   }, [token, project.id]);
 
   // Billing watchdog — plan + billable usage meters, lazy like the services.
+  // Pro-only, matching the estate scan; free tier never issues the reads.
   useEffect(() => {
     let alive = true;
     setBilling(null);
-    if (token) {
+    if (token && pro) {
       fetchProjectBilling(token, project.id).then((b) => {
         if (alive) setBilling(b);
       });
@@ -1453,7 +1481,7 @@ function DetailModal({
     return () => {
       alive = false;
     };
-  }, [token, project.id]);
+  }, [token, project.id, pro]);
 
   const providers = Object.entries(breakdown?.providers || {}).sort(
     (a, b) => b[1] - a[1]
@@ -1824,8 +1852,8 @@ function DetailModal({
           </div>
         ) : null}
 
-        {/* billing watchdog — plan, cost drivers and spike warnings */}
-        <BillingSection billing={billing} />
+        {/* billing watchdog — plan, cost drivers and spike warnings (Pro) */}
+        {pro && <BillingSection billing={billing} />}
 
         {project.firestore && project.firestore.collections.length > 0 && (
           <div className="mt-6">

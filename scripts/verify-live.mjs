@@ -324,10 +324,18 @@ console.log(
     ? "OK  free-plan pill shown"
     : "MISSING free-plan pill"
 );
+// the watchdog is Pro-only on cloud: on Free it must offer the upgrade
+// instead of the scan, and must not name/price any project.
+console.log(
+  (await page.getByText("Scan estate").count()) === 0 &&
+    (await page.getByText("Unlock with Pro").count()) > 0
+    ? "OK  watchdog locked on free tier"
+    : "MISSING watchdog free-tier lock"
+);
 await page.getByText("90d", { exact: true }).first().click();
 await page.waitForSelector("text=Cloud Pro", { timeout: 10000 });
 console.log("OK  locked range opens upgrade modal");
-await page.getByText("Unlock Pro").first().click();
+await page.getByText("Unlock Pro —").first().click();
 await page.waitForTimeout(500);
 console.log(
   (await page.getByText("Free plan · Upgrade").count()) === 0
