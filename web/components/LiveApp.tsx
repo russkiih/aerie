@@ -246,6 +246,12 @@ function UpgradeModal({
   error?: string;
 }) {
   const [busy, setBusy] = useState<Plan | null>(null);
+  // Checkout only ever resolves by navigating away, so the only way back into
+  // this component is a failure. Without this the button would sit on
+  // "Opening checkout…" forever and the user could never retry.
+  useEffect(() => {
+    if (error) setBusy(null);
+  }, [error]);
   const go = (plan: Plan) => {
     setBusy(plan);
     onCheckout(plan);
@@ -265,7 +271,7 @@ function UpgradeModal({
             Cloud Pro
           </span>
           <span className="rounded-full bg-ok/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[.06em] text-ok">
-            Free during early access
+            7-day free trial
           </span>
         </div>
         <div className="mt-4 flex items-baseline gap-2">
@@ -371,8 +377,14 @@ export default function LiveApp() {
   }, [token]);
 
   async function beginCheckout(plan: Plan) {
-    if (!token) return;
     setUpgradeError("");
+    // A missing token used to return silently, which looked identical to a
+    // hung request. Say so instead — it is a real, recoverable state (the
+    // cached token expires after an hour).
+    if (!token) {
+      setUpgradeError("Session expired — reconnect your Google account first.");
+      return;
+    }
     try {
       await startCheckout(token, plan);
     } catch (e: any) {

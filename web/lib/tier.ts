@@ -61,6 +61,15 @@ export async function startCheckout(
     body: JSON.stringify({ googleToken, plan }),
   });
   const d = await r.json().catch(() => ({}));
-  if (!d.url) throw new Error(d.error || "Could not start checkout");
+  if (!d.url) {
+    // The backend's token errors are accurate but unhelpful to a user — the
+    // usual cause is simply the cached Google token ageing out after an hour.
+    const raw = String(d.error || "");
+    throw new Error(
+      /token|audience|email/i.test(raw)
+        ? "Session expired — reconnect your Google account and try again."
+        : raw || "Could not start checkout"
+    );
+  }
   window.location.href = d.url;
 }

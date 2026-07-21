@@ -294,6 +294,9 @@ await ctx.route(/https:\/\/generativelanguage\.googleapis\.com\/.*/, async (rout
 // suite drives it here rather than by clicking a free unlock that no longer
 // exists: flip MOCK_TIER and reload to move between Free and Pro.
 let MOCK_TIER = "free";
+// Set to reject checkout the way the real backend does when the cached Google
+// token has aged out — the one path a mocked-success-only suite never saw.
+let MOCK_CHECKOUT_FAILS = false;
 await ctx.route(/cloudfunctions\.net\/(tier|checkout)/, async (route) => {
   const cors = {
     "Access-Control-Allow-Origin": "*",
@@ -302,7 +305,15 @@ await ctx.route(/cloudfunctions\.net\/(tier|checkout)/, async (route) => {
   };
   if (route.request().method() === "OPTIONS")
     return route.fulfill({ status: 204, headers: cors });
-  const body = route.request().url().includes("/tier")
+  const isTier = route.request().url().includes("/tier");
+  if (!isTier && MOCK_CHECKOUT_FAILS)
+    return route.fulfill({
+      status: 400,
+      headers: cors,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "invalid token" }),
+    });
+  const body = isTier
     ? { tier: MOCK_TIER, status: MOCK_TIER === "pro" ? "trialing" : null }
     : { url: "https://checkout.stripe.com/c/pay/mock-session" };
   return route.fulfill({
@@ -364,6 +375,24 @@ for (const needle of ["Start 7-day trial", "Or $19 month-to-month"]) {
   const n = await page.getByText(needle).count();
   console.log(`${n > 0 ? "OK " : "MISSING"} checkout option: ${needle}`);
 }
+
+// a refused checkout must SAY so and hand the button back — a stuck
+// "Opening checkout…" with no message is what shipped before.
+MOCK_CHECKOUT_FAILS = true;
+await page.getByText("Start 7-day trial").click();
+await page.waitForSelector("text=Session expired", { timeout: 10000 });
+console.log("OK  refused checkout surfaces an error");
+console.log(
+  (await page.getByText("Opening checkout").count()) === 0
+    ? "OK  checkout button recovers after failure"
+    : "MISSING button stuck on 'Opening checkout…'"
+);
+MOCK_CHECKOUT_FAILS = false;
+await page.getByRole("button", { name: /Start 7-day trial/ }).click();
+await page.waitForURL(/checkout\.stripe\.com/, { timeout: 10000 });
+console.log("OK  retry after failure reaches Stripe");
+await page.goBack();
+await page.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
 
 // entitlement flips server-side, so Pro arrives via the backend + a reload
 MOCK_TIER = "pro";
