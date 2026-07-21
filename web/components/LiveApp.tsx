@@ -65,9 +65,11 @@ import {
   IS_CLOUD,
   FREE_PROJECT_LIMIT,
   FREE_RANGE,
-  getTier,
-  activatePro,
+  initialTier,
+  fetchTier,
+  startCheckout,
   type Tier,
+  type Plan,
 } from "@/lib/tier";
 
 type Phase = "landing" | "loading" | "ready" | "error";
@@ -231,14 +233,23 @@ function RangeToggle({
   );
 }
 
-// Early-access upgrade prompt: recaps Pro and unlocks it free (Stripe later).
+// Upgrade prompt: recaps Pro and hands off to Stripe Checkout. Both plans get
+// the 7-day trial the landing page advertises (applied server-side, in the
+// checkout session — never trusted from here).
 function UpgradeModal({
   onClose,
-  onUnlock,
+  onCheckout,
+  error,
 }: {
   onClose: () => void;
-  onUnlock: () => void;
+  onCheckout: (plan: Plan) => void;
+  error?: string;
 }) {
+  const [busy, setBusy] = useState<Plan | null>(null);
+  const go = (plan: Plan) => {
+    setBusy(plan);
+    onCheckout(plan);
+  };
   return (
     <div
       className="overlay-in fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(12,10,9,.66)] p-[18px] backdrop-blur-[6px]"
@@ -279,12 +290,29 @@ function UpgradeModal({
             </li>
           ))}
         </ul>
-        <button
-          onClick={onUnlock}
-          className="mt-6 w-full rounded-xl bg-accent px-4 py-2.5 text-[13.5px] font-semibold text-paper transition-opacity hover:opacity-90"
-        >
-          Unlock Pro — free while billing rolls out
-        </button>
+        <div className="mt-6 flex flex-col gap-2.5">
+          <button
+            onClick={() => go("annual")}
+            disabled={busy !== null}
+            className="w-full rounded-xl bg-accent px-4 py-2.5 text-[13.5px] font-semibold text-paper transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {busy === "annual"
+              ? "Opening checkout…"
+              : "Start 7-day trial — $9/mo billed yearly"}
+          </button>
+          <button
+            onClick={() => go("monthly")}
+            disabled={busy !== null}
+            className="w-full rounded-xl border border-line3 px-4 py-2.5 text-[13px] font-semibold text-muted transition-colors hover:text-ink disabled:opacity-60"
+          >
+            {busy === "monthly"
+              ? "Opening checkout…"
+              : "Or $19 month-to-month"}
+          </button>
+        </div>
+        {error && (
+          <p className="mt-3 text-center text-[11.5px] text-warn">{error}</p>
+        )}
         <p className="mt-3 text-center text-[11px] text-fainter">
           Prefer full control?{" "}
           <a
@@ -319,20 +347,37 @@ export default function LiveApp() {
   );
   const [user, setUser] = useState<UserInfo | null>(null);
   const [retrying, setRetrying] = useState<Set<string>>(new Set());
-  const [tier, setTier] = useState<Tier>("pro");
+  const [tier, setTier] = useState<Tier>(initialTier());
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [upgradeError, setUpgradeError] = useState("");
   const pro = tier === "pro";
 
-  // Tier is read client-side only (localStorage); self-hosted builds are
-  // always "pro" — see lib/tier.ts.
+  // Entitlement follows the signed-in identity, so it is re-checked whenever
+  // the token changes — including the return trip from Stripe Checkout, which
+  // lands back here with a fresh page load. Self-hosted builds short-circuit
+  // to "pro" inside fetchTier without a network call.
   useEffect(() => {
-    setTier(getTier());
-  }, []);
+    if (!token) {
+      setTier(initialTier());
+      return;
+    }
+    let alive = true;
+    fetchTier(token).then((t) => {
+      if (alive) setTier(t);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [token]);
 
-  function unlockPro() {
-    activatePro();
-    setTier("pro");
-    setShowUpgrade(false);
+  async function beginCheckout(plan: Plan) {
+    if (!token) return;
+    setUpgradeError("");
+    try {
+      await startCheckout(token, plan);
+    } catch (e: any) {
+      setUpgradeError(String((e && e.message) || e));
+    }
   }
 
   // Auto-reconnect on load if a valid token is still cached — no re-login.
@@ -913,7 +958,8 @@ export default function LiveApp() {
       {showUpgrade && (
         <UpgradeModal
           onClose={() => setShowUpgrade(false)}
-          onUnlock={unlockPro}
+          onCheckout={beginCheckout}
+          error={upgradeError}
         />
       )}
     </div>

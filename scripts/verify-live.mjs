@@ -290,6 +290,29 @@ await ctx.route(/https:\/\/generativelanguage\.googleapis\.com\/.*/, async (rout
   });
 });
 
+// Billing backend (Cloud Functions). Entitlement is server-side now, so the
+// suite drives it here rather than by clicking a free unlock that no longer
+// exists: flip MOCK_TIER and reload to move between Free and Pro.
+let MOCK_TIER = "free";
+await ctx.route(/cloudfunctions\.net\/(tier|checkout)/, async (route) => {
+  const cors = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+  if (route.request().method() === "OPTIONS")
+    return route.fulfill({ status: 204, headers: cors });
+  const body = route.request().url().includes("/tier")
+    ? { tier: MOCK_TIER, status: MOCK_TIER === "pro" ? "trialing" : null }
+    : { url: "https://checkout.stripe.com/c/pay/mock-session" };
+  return route.fulfill({
+    status: 200,
+    headers: cors,
+    contentType: "application/json",
+    body: JSON.stringify(body),
+  });
+});
+
 // logged-out pass: the landing page (hero, pricing, GitHub CTAs)
 await page.goto(TARGET);
 await page.waitForSelector("text=One dashboard for every Firebase project", { timeout: 20000 });
@@ -335,12 +358,21 @@ console.log(
 await page.getByText("90d", { exact: true }).first().click();
 await page.waitForSelector("text=Cloud Pro", { timeout: 10000 });
 console.log("OK  locked range opens upgrade modal");
-await page.getByText("Unlock Pro —").first().click();
-await page.waitForTimeout(500);
+
+// the modal hands off to Stripe now — both advertised plans must be offered
+for (const needle of ["Start 7-day trial", "Or $19 month-to-month"]) {
+  const n = await page.getByText(needle).count();
+  console.log(`${n > 0 ? "OK " : "MISSING"} checkout option: ${needle}`);
+}
+
+// entitlement flips server-side, so Pro arrives via the backend + a reload
+MOCK_TIER = "pro";
+await page.reload();
+await page.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
 console.log(
   (await page.getByText("Free plan · Upgrade").count()) === 0
-    ? "OK  pro unlocked, pill gone"
-    : "MISSING pro unlock"
+    ? "OK  pro granted by backend, pill gone"
+    : "MISSING backend pro grant"
 );
 
 // billing watchdog: on-demand estate scan (plan + meters + spike flags)

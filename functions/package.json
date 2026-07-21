@@ -1,0 +1,13 @@
+{
+  "name": "aerie-functions",
+  "description": "Stripe billing backend for the hosted Aerie cloud build",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "engines": { "node": "20" },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.1.0",
+    "stripe": "^17.4.0"
+  }
+}

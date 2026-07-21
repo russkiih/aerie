@@ -1,0 +1,18 @@
+rules_version = '2';
+
+// Aerie stores exactly one kind of record: <verified email → Stripe
+// subscription status>, written only by the billing Functions via the Admin
+// SDK (which bypasses these rules). No client ever reads or writes it — the
+// dashboard asks the `tier` Function instead, so entitlement never depends on
+// a document the browser could tamper with in transit.
+//
+// Everything is therefore denied. If a collection is ever added that clients
+// genuinely need, give it its own explicit match block rather than loosening
+// this one.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
