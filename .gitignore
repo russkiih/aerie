@@ -13,6 +13,11 @@ scratch/
 .DS_Store
 .claude/
 
+# verify-live.mjs harness artifacts. Scoped to the repo root on purpose —
+# the real product screenshots in web/public/shots/ are tracked.
+/*.png
+.playwright-mcp/
+
 # owner-local planning docs — never public
 PROGRESS.md
 MONETIZATION.md
