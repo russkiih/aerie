@@ -191,20 +191,22 @@ exports.stripeWebhook = onRequest(
         console.error("no email for subscription", sub && sub.id);
         return;
       }
+      const item = sub.items && sub.items.data && sub.items.data[0];
       const plan =
-        sub.items &&
-        sub.items.data[0] &&
-        sub.items.data[0].price &&
-        sub.items.data[0].price.id === PRICES.monthly
+        item && item.price && item.price.id === PRICES.monthly
           ? "monthly"
           : "annual";
+      // Recent API versions moved the period boundary off the subscription and
+      // onto each item; keep reading both so this survives either shape.
+      const periodEnd =
+        sub.current_period_end || (item && item.current_period_end) || null;
       await subDoc(String(email).toLowerCase()).set(
         {
           status: sub.status,
           plan,
           subscriptionId: sub.id,
           customerId: String(sub.customer),
-          currentPeriodEnd: sub.current_period_end || null,
+          currentPeriodEnd: periodEnd,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
         { merge: true }
