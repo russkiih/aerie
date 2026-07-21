@@ -234,8 +234,8 @@ function RangeToggle({
 }
 
 // Upgrade prompt: recaps Pro and hands off to Stripe Checkout. Both plans get
-// the 7-day trial the landing page advertises (applied server-side, in the
-// checkout session — never trusted from here).
+// the 7-day trial the landing page advertises — annual only, applied
+// server-side in the checkout session and never trusted from here.
 function UpgradeModal({
   onClose,
   onCheckout,
@@ -271,7 +271,7 @@ function UpgradeModal({
             Cloud Pro
           </span>
           <span className="rounded-full bg-ok/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[.06em] text-ok">
-            7-day free trial
+            7-day trial on annual
           </span>
         </div>
         <div className="mt-4 flex items-baseline gap-2">
@@ -279,7 +279,8 @@ function UpgradeModal({
             $9
           </span>
           <span className="text-[12px] font-medium text-faint">
-            /mo billed yearly · 7-day free trial · or $19 monthly
+            /mo billed yearly, after a 7-day free trial · or $19 monthly,
+            billed today
           </span>
         </div>
         <ul className="mt-5 space-y-2.5 text-[13px] text-muted">
@@ -313,7 +314,7 @@ function UpgradeModal({
           >
             {busy === "monthly"
               ? "Opening checkout…"
-              : "Or $19 month-to-month"}
+              : "Or $19 month-to-month — billed today"}
           </button>
         </div>
         {error && (
@@ -2191,8 +2192,8 @@ function Landing({
           <PriceCard
             name="Cloud Pro"
             price="$9"
-            cadence="/mo billed yearly · 7-day free trial"
-            sub="or $19 month-to-month"
+            cadence="/mo billed yearly, after a 7-day free trial"
+            sub="or $19 month-to-month, billed today"
             highlight
             items={[
               "Unlimited projects",

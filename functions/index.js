@@ -33,7 +33,7 @@ const PRICES = {
   annual: "price_1TvTQkDU82Y7dwOsX0xLohWW", // $108/yr — "$9/mo billed yearly"
   monthly: "price_1TvTQoDU82Y7dwOs0mUUBVcD", // $19/mo
 };
-const TRIAL_DAYS = 7;
+const TRIAL_DAYS = 7; // annual only — see the checkout handler
 
 const ALLOWED_ORIGINS = [
   APP_URL,
@@ -122,15 +122,18 @@ exports.checkout = onRequest(
       const customer =
         found.data[0] || (await stripe.customers.create({ email }));
 
+      // The trial is an annual-plan incentive only. Monthly bills from day
+      // one — a free week on a month-to-month plan gives away a quarter of
+      // the first billing period for a subscription that can leave anyway.
+      const subscriptionData = { metadata: { email, plan } };
+      if (plan === "annual") subscriptionData.trial_period_days = TRIAL_DAYS;
+
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
         customer: customer.id,
         client_reference_id: email,
         line_items: [{ price: PRICES[plan], quantity: 1 }],
-        subscription_data: {
-          trial_period_days: TRIAL_DAYS,
-          metadata: { email, plan },
-        },
+        subscription_data: subscriptionData,
         success_url: `${APP_URL}/?upgraded=1`,
         cancel_url: `${APP_URL}/?upgrade_cancelled=1`,
         allow_promotion_codes: true,
