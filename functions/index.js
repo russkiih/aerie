@@ -43,6 +43,10 @@ const TRIAL_DAYS = 7; // annual only — see the checkout handler
 const ANALYST_MODEL = "gemini-3.6-flash";
 const ANALYST_CAP = 100;
 
+// The real UI snapshot is a few KB. This is not a tuning knob — it is the
+// ceiling that makes the monthly cap bound SPEND and not merely call count.
+const ANALYST_MAX_PAYLOAD_BYTES = 64 * 1024;
+
 // Kept in sync with the BYOK system prompt in web/lib/analyst.ts. The proxy
 // holds it server-side so the browser only sends the metrics snapshot.
 const ANALYST_SYSTEM = `You are Aerie's growth analyst. Aerie is a dashboard that shows a developer live metrics for their Firebase projects. You receive a JSON snapshot of one project's real numbers: users, Firestore documents and collections, GA4 traffic (daily active users for the selected window plus the previous window for comparison), traffic sources (top pages, referral sources, countries, devices, operating systems, events), sign-in methods, signups by month, and enabled Firebase services.
@@ -53,7 +57,7 @@ Insights
 - 3 to 5 bullets, ranked by importance. Each grounded in specific numbers from the snapshot (cite them). Call out what is working, what looks like a problem, and anything that looks like bot/crawler noise rather than real users.
 
 Actions
-- 2 to 3 bullets. Specific next moves this developer should make, derived from the insights.
+- 2 to 3 bullets. Specific next moves this developer should make, derived from the insights (e.g. which page type to double down on, which acquisition channel to invest in, which sign-in method to promote, what to instrument next).
 
 Rules: plain text only — exactly the two section headers above, bullets starting with "- ". No preamble, no closing paragraph, no markdown syntax beyond the bullets. Keep every bullet to 1-2 sentences. If a section of the snapshot is null or empty, don't speculate about it.`;
 
@@ -173,7 +177,15 @@ exports.checkout = onRequest(
 // the generated text pass through memory and are never logged or stored. The
 // only Firestore write touches the two counter fields — see quota.js.
 exports.analyst = onRequest(
-  { secrets: [GEMINI_API_KEY], cors: false },
+  {
+    secrets: [GEMINI_API_KEY],
+    cors: false,
+    // The default 60s can kill a slow thinking-model stream mid-flight, which
+    // spends a credit and shows the user nothing; maxInstances bounds
+    // concurrent invocation cost.
+    timeoutSeconds: 120,
+    maxInstances: 20,
+  },
   async (req, res) => {
     if (cors(req, res)) return;
     // A YYYY-MM stamp; used both for the quota period and the reset check.
@@ -189,6 +201,13 @@ exports.analyst = onRequest(
       payload = body.payload;
       if (!payload || typeof payload !== "object")
         throw new Error("missing payload");
+      const payloadBytes = Buffer.byteLength(JSON.stringify(payload), "utf8");
+      if (payloadBytes > ANALYST_MAX_PAYLOAD_BYTES) {
+        // Byte count only — never the payload itself.
+        console.log("analyst payload too large", payloadBytes);
+        res.status(413).json({ error: "payload too large" });
+        return;
+      }
     } catch (e) {
       // Do not log the body — only the reason.
       res.status(401).json({ error: String(e.message || e) });
@@ -251,6 +270,10 @@ exports.analyst = onRequest(
                 ],
               },
             ],
+            generationConfig: {
+              maxOutputTokens: 2048,
+              thinkingConfig: { thinkingBudget: 512 },
+            },
           }),
         }
       );
@@ -277,13 +300,12 @@ exports.analyst = onRequest(
     const reader = gRes.body.getReader();
 
     // A closed tab must stop the upstream pull — otherwise we keep paying
-    // Gemini for tokens nobody will receive. Writes to a destroyed response
-    // surface as an async 'error' event, so absorb that too.
+    // Gemini for tokens nobody will receive.
+    // Node emits 'close' on the RESPONSE when the client goes away. (req's
+    // 'close' fires when the body finishes parsing — long before we get here —
+    // so listening there silently never fires.)
     let clientGone = false;
-    res.on("error", () => {
-      clientGone = true;
-    });
-    req.on("close", () => {
+    res.on("close", () => {
       clientGone = true;
       reader.cancel().catch(() => {});
     });
@@ -325,7 +347,9 @@ exports.analyst = onRequest(
         console.log(
           "analyst usage",
           usage.promptTokenCount,
-          usage.candidatesTokenCount
+          usage.candidatesTokenCount,
+          usage.thoughtsTokenCount,
+          usage.totalTokenCount
         );
       try {
         res.end();

@@ -1478,7 +1478,10 @@ function DetailModal({
 
   async function analyze() {
     if (aiBusy) return;
-    if (!aiKey && !token) return;
+    if (!aiKey && !token) {
+      setAiError("Session expired — reconnect your Google account and try again.");
+      return;
+    }
     setAiBusy(true);
     setAiError("");
     setAiText("");

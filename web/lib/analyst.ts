@@ -329,5 +329,8 @@ export async function runAnalystViaCloud(
     );
   }
   // Relay frames are { text } objects, terminated by [DONE].
-  return readSse(res, (j) => j.text || "", onText);
+  const text = await readSse(res, (j) => j.text || "", onText);
+  if (!text.trim())
+    throw new Error("The analyst returned nothing — try again shortly.");
+  return text;
 }
