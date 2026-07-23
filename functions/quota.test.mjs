@@ -36,4 +36,10 @@ assert.deepEqual(reserveQuota({ status: "active" }, "2026-07", CAP), {
   period: "2026-07",
 });
 
+// A negative counter must not grant free calls (clamped to zero).
+assert.deepEqual(
+  reserveQuota({ analystCalls: -5, analystPeriod: "2026-07" }, "2026-07", CAP),
+  { allowed: true, calls: 1, period: "2026-07" }
+);
+
 console.log("OK  quota helper");
