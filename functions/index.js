@@ -271,8 +271,12 @@ exports.analyst = onRequest(
               },
             ],
             generationConfig: {
-              maxOutputTokens: 2048,
-              thinkingConfig: { thinkingBudget: 512 },
+              // maxOutputTokens caps thinking + visible output COMBINED, so
+              // leave headroom above what the answer alone needs (~400 tokens
+              // for 8 short bullets). thinkingLevel is the Gemini 3 control;
+              // the legacy thinkingBudget is rejected alongside it with a 400.
+              maxOutputTokens: 4096,
+              thinkingConfig: { thinkingLevel: "low" },
             },
           }),
         }
@@ -313,6 +317,7 @@ exports.analyst = onRequest(
     const dec = new TextDecoder();
     let buf = "";
     let usage = null;
+    let finish = null;
     try {
       for (;;) {
         if (clientGone) break;
@@ -333,23 +338,33 @@ exports.analyst = onRequest(
               .join("");
             if (text) res.write(`data: ${JSON.stringify({ text })}\n\n`);
             if (j.usageMetadata) usage = j.usageMetadata;
+            if (j.candidates?.[0]?.finishReason)
+              finish = j.candidates[0].finishReason;
           } catch {
             // malformed chunk — skip, never log the chunk
           }
         }
       }
+      if (finish && finish !== "STOP")
+        res.write(
+          `data: ${JSON.stringify({
+            text: "\n\n[Analysis was cut short — try a narrower date range.]",
+          })}\n\n`
+        );
       res.write("data: [DONE]\n\n");
     } catch (e) {
       console.error("analyst relay", String(e.message || e));
     } finally {
-      // Token counts only — safe to log, no payload, no text.
+      // Token counts + a bare finish-reason enum only — safe to log, no
+      // payload, no text.
       if (usage)
         console.log(
           "analyst usage",
           usage.promptTokenCount,
           usage.candidatesTokenCount,
           usage.thoughtsTokenCount,
-          usage.totalTokenCount
+          usage.totalTokenCount,
+          finish
         );
       try {
         res.end();

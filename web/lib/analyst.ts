@@ -325,6 +325,8 @@ export async function runAnalystViaCloud(
         ? "Session expired — reconnect your Google account and try again."
         : res.status === 403
         ? "The included AI analyst is a Cloud Pro feature."
+        : res.status === 413
+        ? "This project's snapshot is too large to analyze."
         : "The analyst is unavailable right now — try again shortly."
     );
   }

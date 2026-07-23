@@ -326,7 +326,7 @@ await ctx.route(/cloudfunctions\.net\/(tier|checkout)/, async (route) => {
 
 // Analyst proxy. MOCK_ANALYST controls the outcome so the suite can exercise
 // the included stream and the quota wall without a real Gemini call.
-let MOCK_ANALYST = "ok"; // "ok" | "quota"
+let MOCK_ANALYST = "ok"; // "ok" | "quota" | "empty"
 let analystProxyHits = 0;
 await ctx.route(/cloudfunctions\.net\/analyst/, async (route) => {
   const cors = {
@@ -343,6 +343,14 @@ await ctx.route(/cloudfunctions\.net\/analyst/, async (route) => {
       headers: cors,
       contentType: "application/json",
       body: JSON.stringify({ error: "monthly analyst limit reached" }),
+    });
+  }
+  if (MOCK_ANALYST === "empty") {
+    return route.fulfill({
+      status: 200,
+      headers: { ...cors, "Cache-Control": "no-cache" },
+      contentType: "text/event-stream",
+      body: "data: [DONE]\n\n",
     });
   }
   return route.fulfill({
@@ -514,6 +522,28 @@ console.log(
     ? "OK  quota wall reveals BYOK overflow"
     : "MISSING quota overflow key field"
 );
+
+// empty-stream guard: a 200 with no text frames (just [DONE]) must surface a
+// visible error, not a silently blank panel.
+{
+  const prevMockAnalyst = MOCK_ANALYST;
+  MOCK_ANALYST = "empty";
+  // aiText was cleared when the prior (quota) analyze() call started, so the
+  // button reads "Analyze this project" again here, not "Analyze again".
+  await page.getByRole("button", { name: /^Analyze/ }).click();
+  await page.waitForSelector(
+    "text=The analyst returned nothing — try again shortly.",
+    { timeout: 10000 }
+  );
+  console.log(
+    (await page
+      .getByText("The analyst returned nothing — try again shortly.")
+      .count()) > 0
+      ? "OK  empty analyst stream surfaces an error"
+      : "MISSING empty analyst stream error"
+  );
+  MOCK_ANALYST = prevMockAnalyst;
+}
 
 // stored BYOK key must take priority over the cloud proxy. With the quota
 // wall still up (MOCK_ANALYST stays "quota"), save a Gemini-format key into
