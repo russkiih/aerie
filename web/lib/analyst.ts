@@ -305,11 +305,17 @@ export async function runAnalystViaCloud(
   payload: object,
   onText: (delta: string) => void
 ): Promise<string> {
-  const res = await fetch(`${FN}/analyst`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ googleToken, payload }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${FN}/analyst`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ googleToken, payload }),
+    });
+  } catch {
+    // Offline, DNS, CORS — never surface the browser's raw "Failed to fetch".
+    throw new Error("The analyst is unavailable right now — try again shortly.");
+  }
   if (res.status === 429) throw new QuotaExhaustedError();
   if (!res.ok) {
     const d = await res.json().catch(() => ({}));
