@@ -8,6 +8,18 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 
+// The billing Functions base — same host the tier/checkout calls use.
+const FN = "https://us-central1-aerie-dashboard-app.cloudfunctions.net";
+
+// Thrown when the caller has spent their monthly included analyses. The UI
+// catches this specifically to reveal the bring-your-own-key overflow.
+export class QuotaExhaustedError extends Error {
+  constructor() {
+    super("monthly-limit");
+    this.name = "QuotaExhaustedError";
+  }
+}
+
 const KEY = "aerie_anthropic_key_v1";
 
 export function getAnalystKey(): string | null {
@@ -283,4 +295,33 @@ export function analystErrorMessage(e: unknown): string {
   if (e instanceof Anthropic.APIError)
     return `API error (${e.status}): ${e.message}`;
   return e instanceof Error ? e.message : "Something went wrong.";
+}
+
+// Cloud Pro analyst: the browser sends its verified Google token plus the same
+// metrics snapshot the BYOK path builds, and the Function relays Gemini's
+// stream. The provider key never touches the browser here.
+export async function runAnalystViaCloud(
+  googleToken: string,
+  payload: object,
+  onText: (delta: string) => void
+): Promise<string> {
+  const res = await fetch(`${FN}/analyst`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ googleToken, payload }),
+  });
+  if (res.status === 429) throw new QuotaExhaustedError();
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    const raw = String(d.error || "");
+    throw new Error(
+      /token|audience|email/i.test(raw)
+        ? "Session expired — reconnect your Google account and try again."
+        : res.status === 403
+        ? "The included AI analyst is a Cloud Pro feature."
+        : "The analyst is unavailable right now — try again shortly."
+    );
+  }
+  // Relay frames are { text } objects, terminated by [DONE].
+  return readSse(res, (j) => j.text || "", onText);
 }
