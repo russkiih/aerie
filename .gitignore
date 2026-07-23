@@ -37,3 +37,4 @@ key.json
 # scripts
 scripts/node_modules/
 web/data/firestore.json.local
+.superpowers/
