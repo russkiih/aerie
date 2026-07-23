@@ -66,6 +66,7 @@ import {
 import {
   IS_CLOUD,
   FREE_PROJECT_LIMIT,
+  FREE_SORT,
   FREE_RANGE,
   initialTier,
   fetchTier,
@@ -519,14 +520,28 @@ export default function LiveApp() {
     };
   }, [projects]);
 
+  // On the free cloud tier the unlocked projects are pinned by the default
+  // ranking (most users first) before any search or sort runs, so changing the
+  // sort can't rotate a different trio through the three free slots.
+  const [freeProjects, lockedProjects] = useMemo(() => {
+    if (pro) return [projects, [] as LiveProject[]];
+    const ranked = [...projects].sort(
+      (a, b) => (b.userCount || 0) - (a.userCount || 0)
+    );
+    return [
+      ranked.slice(0, FREE_PROJECT_LIMIT),
+      ranked.slice(FREE_PROJECT_LIMIT),
+    ];
+  }, [projects, pro]);
+
   const visibleProjects = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = q
-      ? projects.filter(
+      ? freeProjects.filter(
           (p) =>
             p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)
         )
-      : projects;
+      : freeProjects;
     const scored = [...filtered];
     scored.sort((a, b) => {
       if (sort === "name") return a.name.localeCompare(b.name);
@@ -537,7 +552,7 @@ export default function LiveApp() {
       return (b.userCount || 0) - (a.userCount || 0);
     });
     return scored;
-  }, [projects, query, sort]);
+  }, [freeProjects, query, sort]);
 
   if (phase === "landing" || phase === "error") {
     return (
@@ -552,10 +567,8 @@ export default function LiveApp() {
   const sel = projects.find((p) => p.id === selected) || null;
   // Free cloud tier shows the top FREE_PROJECT_LIMIT projects; the rest are
   // summarized in a locked card that opens the upgrade prompt.
-  const shownProjects = pro
-    ? visibleProjects
-    : visibleProjects.slice(0, FREE_PROJECT_LIMIT);
-  const lockedCount = visibleProjects.length - shownProjects.length;
+  const shownProjects = visibleProjects;
+  const lockedCount = lockedProjects.length;
   const { current: activeSeries, compare: compareSeries } = sliceRange(
     totals.trafficByMetric[metric],
     range
@@ -820,15 +833,21 @@ export default function LiveApp() {
               ["traffic", "Traffic"],
               ["name", "A–Z"],
             ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setSort(key)}
-              className={tabBtn(sort === key)}
-            >
-              {label}
-            </button>
-          ))}
+          ).map(([key, label]) => {
+            // Free tier keeps the one ordering its three unlocked projects are
+            // chosen by; the rest open the upgrade prompt, like the ranges.
+            const locked = !pro && key !== FREE_SORT;
+            return (
+              <button
+                key={key}
+                onClick={() => (locked ? setShowUpgrade(true) : setSort(key))}
+                title={locked ? "Cloud Pro" : undefined}
+                className={`${tabBtn(sort === key)}${locked ? " opacity-50" : ""}`}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -932,8 +951,7 @@ export default function LiveApp() {
                   more project{lockedCount === 1 ? "" : "s"} on your account
                 </span>
                 <span className="max-w-[230px] truncate text-[11px] text-fainter">
-                  {visibleProjects
-                    .slice(FREE_PROJECT_LIMIT)
+                  {lockedProjects
                     .map((p) => p.name)
                     .join(" · ")}
                 </span>

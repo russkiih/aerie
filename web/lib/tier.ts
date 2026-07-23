@@ -21,6 +21,10 @@ export const IS_CLOUD = process.env.NEXT_PUBLIC_AERIE_CLOUD === "1";
 export const FREE_PROJECT_LIMIT = 3;
 // The only traffic window on the free cloud tier.
 export const FREE_RANGE = 28;
+// The only project ordering on the free cloud tier. It has to match the
+// ranking that picks the FREE_PROJECT_LIMIT unlocked projects, otherwise a
+// sort would imply projects the free tier never shows.
+export const FREE_SORT = "users";
 
 export type Tier = "free" | "pro";
 export type Plan = "annual" | "monthly";

@@ -366,6 +366,17 @@ console.log(
     ? "OK  watchdog locked on free tier"
     : "MISSING watchdog free-tier lock"
 );
+// project sort is Pro-only: the free tier's unlocked projects are pinned by
+// the default "Users" ranking, so any other ordering must offer the upgrade
+// rather than reshuffle which projects the free slots show.
+await page.getByText("A–Z", { exact: true }).first().click();
+await page.waitForSelector("text=Cloud Pro", { timeout: 10000 });
+console.log("OK  locked sort opens upgrade modal");
+// the modal closes on a backdrop click (no Escape handler) — hit a corner so
+// the click lands on the overlay, not the panel that stops propagation.
+await page.locator("div.overlay-in").click({ position: { x: 5, y: 5 } });
+await page.waitForSelector("div.overlay-in", { state: "detached", timeout: 10000 });
+
 await page.getByText("90d", { exact: true }).first().click();
 await page.waitForSelector("text=Cloud Pro", { timeout: 10000 });
 console.log("OK  locked range opens upgrade modal");
