@@ -324,6 +324,37 @@ await ctx.route(/cloudfunctions\.net\/(tier|checkout)/, async (route) => {
   });
 });
 
+// Analyst proxy. MOCK_ANALYST controls the outcome so the suite can exercise
+// the included stream and the quota wall without a real Gemini call.
+let MOCK_ANALYST = "ok"; // "ok" | "quota"
+let analystProxyHits = 0;
+await ctx.route(/cloudfunctions\.net\/analyst/, async (route) => {
+  const cors = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+  if (route.request().method() === "OPTIONS")
+    return route.fulfill({ status: 204, headers: cors });
+  analystProxyHits++;
+  if (MOCK_ANALYST === "quota") {
+    return route.fulfill({
+      status: 429,
+      headers: cors,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "monthly analyst limit reached" }),
+    });
+  }
+  return route.fulfill({
+    status: 200,
+    headers: { ...cors, "Cache-Control": "no-cache" },
+    contentType: "text/event-stream",
+    body:
+      'data: {"text":"Insights\\n- Mocked proxy insight."}\n\n' +
+      "data: [DONE]\n\n",
+  });
+});
+
 // logged-out pass: the landing page (hero, pricing, GitHub CTAs)
 await page.goto(TARGET);
 await page.waitForSelector("text=One dashboard for every Firebase project", { timeout: 20000 });
@@ -345,7 +376,6 @@ await page.screenshot({ path: "landing.png", fullPage: true });
 
 await page.evaluate(() => {
   localStorage.setItem("aerie_token_v3", JSON.stringify({ token: "mock", exp: Date.now() + 3600000 }));
-  localStorage.setItem("aerie_anthropic_key_v1", "AQ.Ab8-mock-key");
 });
 await page.reload();
 await page.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
@@ -366,6 +396,19 @@ console.log(
     ? "OK  watchdog locked on free tier"
     : "MISSING watchdog free-tier lock"
 );
+// the analyst is also Pro-only: on Free, opening a project's detail modal
+// shows the upgrade pitch instead of a BYOK key field — no key input
+// reachable without upgrading first.
+await page.locator("text=TakeoffConvert").first().click();
+await page.waitForSelector("text=Breakdowns", { timeout: 20000 });
+console.log(
+  (await page.getByText("included with").count()) > 0 &&
+    (await page.getByRole("button", { name: "Upgrade to Pro" }).count()) > 0
+    ? "OK  analyst locked on free tier"
+    : "MISSING analyst free-tier lock"
+);
+await page.locator("div.overlay-in").click({ position: { x: 5, y: 5 } });
+await page.waitForSelector("div.overlay-in", { state: "detached", timeout: 10000 });
 // project sort is Pro-only: the free tier's unlocked projects are pinned by
 // the default "Users" ranking, so any other ordering must offer the upgrade
 // rather than reshuffle which projects the free slots show.
@@ -427,16 +470,33 @@ await page.screenshot({ path: "watchdog.png", fullPage: true });
 await page.locator("text=TakeoffConvert").first().click();
 await page.waitForSelector("text=Breakdowns", { timeout: 20000 });
 
-// AI analyst: click Analyze, wait for streamed insights, screenshot the panel
-await page.getByText("Analyze this project").click();
-await page.waitForSelector("text=Reddit-intercept", { timeout: 15000 });
+// AI analyst: Pro tier + no stored BYOK key (Step 2 dropped the localStorage
+// injection) -> the included analyst calls the proxy. MOCK_ANALYST controls
+// the mocked SSE outcome (route registered above).
+MOCK_ANALYST = "ok";
+const beforeHits = analystProxyHits;
+await page.getByRole("button", { name: /Analyze this project/ }).click();
+await page.waitForSelector("text=Mocked proxy insight", { timeout: 10000 });
+console.log(
+  analystProxyHits > beforeHits
+    ? "OK  Pro analyst streams via the proxy"
+    : "MISSING proxy stream"
+);
 await page.waitForTimeout(400);
 const aiPanel = page
   .locator("div.modal-in > div")
   .filter({ has: page.getByText("AI analyst") })
   .last();
 await aiPanel.screenshot({ path: "analyst-panel.png" });
-for (const needle of ["AI analyst", "Insights", "Actions", "Analyze again", "crawler noise", "via Google Gemini"]) {
+// "Actions", "crawler noise" and "via Google Gemini" are dropped here on
+// purpose, not to force green: they asserted on the fixed BYOK-Gemini fixture
+// (INSIGHT_TEXT's Actions section, its crawler-noise bullet) and on the
+// provider-attribution badge that only renders when aiKey is set. With Step 2
+// removing the stored key, this path now runs the Pro-proxy stream (a single
+// "Insights" line, no Actions section, no key -> no attribution badge), so
+// none of those three can ever match here again. The rest of the pre-existing
+// checks are provider-agnostic and still hold against the proxy response.
+for (const needle of ["AI analyst", "Insights", "Analyze again"]) {
   const n = await page.getByText(needle).count();
   console.log(`${n > 0 ? "OK " : "MISSING"} ${needle}`);
 }
@@ -444,6 +504,16 @@ const errCount = await page.getByText("stream ended without").count();
 console.log(errCount === 0 ? "OK  no analyst error shown" : "MISSING clean finalMessage (error visible)");
 await page.waitForTimeout(900);
 await page.screenshot({ path: "live-modal.png", fullPage: true });
+
+// quota overflow: the proxy's 429 reveals the BYOK key field
+MOCK_ANALYST = "quota";
+await page.getByRole("button", { name: /Analyze again/ }).click();
+await page.waitForSelector("text=100 included analyses", { timeout: 10000 });
+console.log(
+  (await page.getByRole("button", { name: "Use my key" }).count()) > 0
+    ? "OK  quota wall reveals BYOK overflow"
+    : "MISSING quota overflow key field"
+);
 
 // sanity: assert every panel title + a known row is present
 for (const needle of ["Pages", "Sources", "Countries", "Devices", "Operating systems", "/app/estimate", "google", "United States", "desktop", "Linux", "7 online", "Events", "page_view", "estimate_created", "Count"]) {
