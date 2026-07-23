@@ -57,6 +57,8 @@ import {
   setAnalystKey,
   clearAnalystKey,
   runAnalyst,
+  runAnalystViaCloud,
+  QuotaExhaustedError,
   analystErrorMessage,
   detectProvider,
   providerLabel,
@@ -1379,6 +1381,48 @@ const PROVIDER_LABELS: Record<string, string> = {
   anonymous: "Anonymous",
 };
 
+// One key input, two callers: the no-key prompt and the Pro quota overflow.
+function AnalystKeyInput({
+  label,
+  onSaved,
+  onInvalid,
+}: {
+  label: string;
+  onSaved: (key: string) => void;
+  onInvalid: (msg: string) => void;
+}) {
+  const [value, setValue] = useState("");
+  return (
+    <div className="flex gap-2">
+      <input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="sk-ant-… · sk-… · AIza… · xai-… · gsk_…"
+        type="password"
+        className="min-w-0 flex-1 rounded-[9px] border border-line bg-panel px-3 py-2 font-mono text-[12px] text-ink placeholder:text-faint focus:border-accent focus:outline-none"
+      />
+      <button
+        onClick={() => {
+          const k = value.trim();
+          if (!k) return;
+          if (!detectProvider(k)) {
+            onInvalid(
+              "Unrecognized key format — expected an Anthropic (sk-ant-), OpenAI (sk-), Gemini (AIza… or AQ.…), xAI (xai-) or Groq (gsk_) key."
+            );
+            return;
+          }
+          setAnalystKey(k);
+          onSaved(k);
+          setValue("");
+        }}
+        className="shrink-0 rounded-[9px] bg-accent px-4 py-2 text-[12px] font-semibold text-paper transition-opacity hover:opacity-90"
+      >
+        {label}
+      </button>
+    </div>
+  );
+}
+
 function DetailModal({
   project,
   token,
@@ -1404,7 +1448,7 @@ function DetailModal({
     "active"
   );
   const [aiKey, setAiKey] = useState<string | null>(null);
-  const [keyInput, setKeyInput] = useState("");
+  const [quotaHit, setQuotaHit] = useState(false);
   const [aiText, setAiText] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState("");
@@ -1415,7 +1459,8 @@ function DetailModal({
   }, []);
 
   async function analyze() {
-    if (!aiKey || aiBusy) return;
+    if (aiBusy) return;
+    if (!aiKey && !token) return;
     setAiBusy(true);
     setAiError("");
     setAiText("");
@@ -1453,9 +1498,24 @@ function DetailModal({
         : null,
     };
     try {
-      await runAnalyst(aiKey, payload, (d) => setAiText((s) => s + d));
+      if (aiKey) {
+        // BYOK — self-host, or a Pro user who pasted their own key.
+        await runAnalyst(aiKey, payload, (d) => setAiText((s) => s + d));
+      } else {
+        // Cloud Pro included analyst, on our key.
+        await runAnalystViaCloud(token!, payload, (d) =>
+          setAiText((s) => s + d)
+        );
+      }
     } catch (e) {
-      setAiError(analystErrorMessage(e));
+      if (e instanceof QuotaExhaustedError) {
+        setQuotaHit(true);
+        setAiError(
+          "You've used your 100 included analyses this month. Add your own API key to keep going."
+        );
+      } else {
+        setAiError(analystErrorMessage(e));
+      }
     } finally {
       setAiBusy(false);
     }
@@ -1768,7 +1828,23 @@ function DetailModal({
               </span>
             )}
           </div>
-          {!aiKey ? (
+          {/* Cloud-free: locked. No key field — the analyst is the upgrade driver. */}
+          {IS_CLOUD && !pro && !aiKey ? (
+            <div className="mt-3">
+              <p className="text-[12px] leading-relaxed text-muted">
+                The AI analyst reads this project&apos;s real numbers and returns
+                concrete insights and next moves. It&apos;s included with{" "}
+                <span className="text-ink">Cloud Pro</span>.
+              </p>
+              <button
+                onClick={onUpgrade}
+                className="mt-3 rounded-[9px] bg-accent px-4 py-2 text-[12px] font-semibold text-paper transition-opacity hover:opacity-90"
+              >
+                Upgrade to Pro
+              </button>
+            </div>
+          ) : !aiKey && !(IS_CLOUD && pro) ? (
+            /* Self-host (or any build) with no key: the existing BYOK prompt. */
             <div className="mt-3">
               <p className="text-[12px] leading-relaxed text-muted">
                 Get concrete insights and next moves from this project&apos;s
@@ -1781,39 +1857,22 @@ function DetailModal({
                 go straight to that provider, billed to your key. Nothing
                 touches Aerie&apos;s servers.
               </p>
-              <div className="mt-3 flex gap-2">
-                <input
-                  value={keyInput}
-                  onChange={(e) => setKeyInput(e.target.value)}
-                  placeholder="sk-ant-… · sk-… · AIza… · xai-… · gsk_…"
-                  type="password"
-                  className="min-w-0 flex-1 rounded-[9px] border border-line bg-panel px-3 py-2 font-mono text-[12px] text-ink placeholder:text-faint focus:border-accent focus:outline-none"
-                />
-                <button
-                  onClick={() => {
-                    const k = keyInput.trim();
-                    if (!k) return;
-                    if (!detectProvider(k)) {
-                      setAiError(
-                        "Unrecognized key format — expected an Anthropic (sk-ant-), OpenAI (sk-), Gemini (AIza… or AQ.…), xAI (xai-) or Groq (gsk_) key."
-                      );
-                      return;
-                    }
+              <div className="mt-3">
+                <AnalystKeyInput
+                  label="Save key"
+                  onSaved={(k) => {
                     setAiError("");
-                    setAnalystKey(k);
                     setAiKey(k);
-                    setKeyInput("");
                   }}
-                  className="shrink-0 rounded-[9px] bg-accent px-4 py-2 text-[12px] font-semibold text-paper transition-opacity hover:opacity-90"
-                >
-                  Save key
-                </button>
+                  onInvalid={(msg) => setAiError(msg)}
+                />
               </div>
               {aiError && (
                 <p className="mt-2 text-[12px] text-warn">{aiError}</p>
               )}
             </div>
           ) : (
+            /* Cloud Pro (included, our key) OR any build with a BYOK key set. */
             <div className="mt-3">
               {aiText && (
                 <p className="mb-3 whitespace-pre-wrap text-[12.5px] leading-relaxed text-ink">
@@ -1822,6 +1881,20 @@ function DetailModal({
               )}
               {aiError && (
                 <p className="mb-3 text-[12px] text-warn">{aiError}</p>
+              )}
+              {/* Quota overflow: reveal the BYOK key field so Pro users can continue. */}
+              {quotaHit && !aiKey && (
+                <div className="mb-3">
+                  <AnalystKeyInput
+                    label="Use my key"
+                    onSaved={(k) => {
+                      setAiKey(k);
+                      setQuotaHit(false);
+                      setAiError("");
+                    }}
+                    onInvalid={(msg) => setAiError(msg)}
+                  />
+                </div>
               )}
               <button
                 onClick={analyze}
