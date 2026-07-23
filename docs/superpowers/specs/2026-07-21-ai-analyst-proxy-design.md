@@ -40,7 +40,8 @@ surface. That is the exposure being accepted.
 | Decision | Choice | Why |
 |---|---|---|
 | Proxy posture | Zero-retention passthrough | Forwards the same snapshot the browser already builds; persists nothing but a usage counter. Keeps the privacy pitch materially intact and is the least code. |
-| Spend control | Monthly quota + BYOK overflow | The BYOK path already exists and becomes the overflow valve at no build cost. |
+| Free-tier access | Analyst locked → upgrade prompt | The analyst is the headline upgrade driver, so it is not given away on cloud free. BYOK on cloud exists only on Pro (as overflow). |
+| Spend control | Monthly quota + Pro-only BYOK overflow | The BYOK path already exists and becomes the overflow valve for Pro at no build cost. |
 | Provider | Google Gemini | Owner already holds a Gemini key; ~4× cheaper than Opus-tier for this workload. |
 | Model | `gemini-3.6-flash`, pinned | Newest Flash tier; cheaper output than 3.5 Flash. Pinned rather than auto-detected — see below. |
 | Included quota | 100 analyses / month | ~$2.70 worst-case against $9 revenue. High enough that normal use never sees it; low enough to wall off a scripted caller. |
@@ -59,14 +60,21 @@ Calibration below — the 100/month cap is provisional until measured.
 
 ```
 Self-host            → BYOK (any provider), browser → provider directly
-Cloud Free           → BYOK, browser → provider directly
+Cloud Free           → analyst LOCKED, upgrade prompt (no BYOK on cloud free)
 Cloud Pro            → browser → analyst Function → Gemini 3.6 Flash
 Cloud Pro + own key  → BYOK, bypasses the proxy, quota untouched
 ```
 
-The last row is deliberate: a Pro user who pastes their own key keeps the direct
-browser path. Their key, their bill, no counter touched — and it is the same
-input that becomes the overflow when quota is exhausted.
+Two deliberate rows:
+
+- **Cloud Free is locked.** The analyst is the headline reason to upgrade, so it
+  is not given away on the free cloud tier — the panel shows an upgrade prompt
+  instead of a key field. (Self-host keeps BYOK forever; that is the
+  open-source promise, and self-host never touches the billing backend.)
+- **Cloud Pro + own key keeps the direct browser path.** Their key, their bill,
+  no counter touched — and it is the same input that becomes the overflow when
+  the monthly quota is exhausted. BYOK on cloud therefore exists *only* on Pro,
+  as the overflow valve.
 
 A fourth Cloud Function, `analyst`, joins `tier`, `checkout`, and
 `stripeWebhook`. It reuses the existing `verifiedEmail()` helper, the shared
@@ -99,15 +107,21 @@ untouched for BYOK.
 - Add a `runAnalystViaCloud(googleToken, payload, onText)` alongside the existing
   `runAnalyst(apiKey, ...)`.
 - Reuses the existing `readSse` helper rather than adding a second transport.
-- Selection logic lives at the call site, not inside the analyst module:
-  a stored BYOK key always wins; otherwise, cloud Pro uses the proxy;
-  otherwise the existing "add a key" prompt.
+- Selection logic lives at the call site, not inside the analyst module. The
+  resolution order:
+  1. A stored BYOK key always wins (self-host, or a Pro user who pasted one).
+  2. Else cloud Pro → the proxy.
+  3. Else cloud Free → **locked**, upgrade prompt (no key field).
+  4. Self-host with no key → the existing "add a key" prompt (unchanged).
 
 ### `web/components/LiveApp.tsx`
 
-- Analyst panel chooses cloud vs BYOK per the routing table.
-- Quota-exhausted response renders the add-your-key message with the existing
-  key input directly beneath it.
+- Analyst panel routes per the resolution order above.
+- **Cloud Free** shows a locked state — the AI panel presents "Upgrade to Pro
+  for the AI analyst", not a key input. This is the design change from the
+  previous BYOK-on-free behavior.
+- Quota-exhausted (Pro) renders the add-your-key overflow: the message plus the
+  existing key input directly beneath it.
 
 ### Firestore
 
@@ -182,15 +196,17 @@ The client maps these by status code, not by string matching on the message.
 existing `MOCK_TIER` / `MOCK_CHECKOUT_FAILS` pattern:
 
 1. **Pro, no BYOK key** → analysis streams and renders, no key prompt shown.
-2. **Pro, quota exhausted (429)** → add-your-key message appears and the key
-   input is visible beneath it.
+2. **Pro, quota exhausted (429)** → add-your-key overflow message appears and
+   the key input is visible beneath it.
 3. **Pro, BYOK key set** → the mocked proxy endpoint is never called
    (asserted by request interception), confirming BYOK bypasses the quota.
-4. **Free tier** → existing BYOK prompt, unchanged.
+4. **Cloud Free** → analyst panel shows the "Upgrade to Pro" locked state; no
+   key input, and the proxy endpoint is never called.
 5. **Self-host build** → existing BYOK prompt, unchanged.
 
-Cases 3 and 5 are the regression guards: they prove the proxy did not
-accidentally become the path for users who should never touch it.
+Cases 3, 4, and 5 are the regression guards: case 4 proves Free can't reach the
+analyst at all, and 3/5 prove the proxy did not accidentally become the path for
+users who should never touch it.
 
 ## Calibration
 
@@ -207,7 +223,9 @@ analysis, ~4× cheaper again).
 
 ## Out of scope
 
-- Changing the BYOK path in any way. It stays multi-provider and untouched.
+- Changing the BYOK *transport*. The multi-provider `runAnalyst(apiKey, ...)`
+  path stays untouched; only *where it is offered* changes (removed from cloud
+  free, kept on self-host and as the Pro overflow).
 - Storing generated analyses for history, trends, or the weekly digest. That is
   a separate decision with a different privacy posture; if it happens, it gets
   its own spec.
