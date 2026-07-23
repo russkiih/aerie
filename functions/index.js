@@ -173,7 +173,7 @@ exports.checkout = onRequest(
 // the generated text pass through memory and are never logged or stored. The
 // only Firestore write touches the two counter fields — see quota.js.
 exports.analyst = onRequest(
-  { secrets: [STRIPE_SECRET_KEY, GEMINI_API_KEY], cors: false },
+  { secrets: [GEMINI_API_KEY], cors: false },
   async (req, res) => {
     if (cors(req, res)) return;
     // A YYYY-MM stamp; used both for the quota period and the reset check.
@@ -275,11 +275,25 @@ exports.analyst = onRequest(
     res.set("Connection", "keep-alive");
 
     const reader = gRes.body.getReader();
+
+    // A closed tab must stop the upstream pull — otherwise we keep paying
+    // Gemini for tokens nobody will receive. Writes to a destroyed response
+    // surface as an async 'error' event, so absorb that too.
+    let clientGone = false;
+    res.on("error", () => {
+      clientGone = true;
+    });
+    req.on("close", () => {
+      clientGone = true;
+      reader.cancel().catch(() => {});
+    });
+
     const dec = new TextDecoder();
     let buf = "";
     let usage = null;
     try {
       for (;;) {
+        if (clientGone) break;
         const { done, value } = await reader.read();
         if (done) break;
         buf += dec.decode(value, { stream: true });
@@ -313,7 +327,11 @@ exports.analyst = onRequest(
           usage.promptTokenCount,
           usage.candidatesTokenCount
         );
-      res.end();
+      try {
+        res.end();
+      } catch {
+        // client already gone — nothing to flush
+      }
     }
 
     async function refund(docRef, per) {
