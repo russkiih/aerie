@@ -2274,7 +2274,7 @@ function Landing({
             items={[
               "Up to 3 projects",
               "28-day traffic windows",
-              "AI analyst with your own key",
+              "AI analyst on Pro",
               "Zero setup — sign in and go",
             ]}
             cta="Continue with Google"
