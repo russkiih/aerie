@@ -515,6 +515,30 @@ console.log(
     : "MISSING quota overflow key field"
 );
 
+// stored BYOK key must take priority over the cloud proxy. With the quota
+// wall still up (MOCK_ANALYST stays "quota"), save a Gemini-format key into
+// the revealed overflow field and re-run: analyze() must now take the
+// runAnalyst() (BYOK) branch, not runAnalystViaCloud(). If that priority were
+// ever inverted or dropped, this re-run would still hit the proxy, get the
+// same mocked 429, and analystProxyHits would climb -- exactly the bug where
+// a Pro user's own key silently gets bypassed and OUR Gemini key gets billed
+// (and their included quota consumed) instead.
+const hitsBeforeByok = analystProxyHits;
+await page.locator('input[type="password"]').fill("AQ.Ab8-mock-key");
+await page.getByRole("button", { name: "Use my key" }).click();
+await page.getByRole("button", { name: /^Analyze/ }).click();
+let byokRendered = true;
+try {
+  await page.waitForSelector("text=Reddit-intercept strategy", { timeout: 10000 });
+} catch {
+  byokRendered = false;
+}
+console.log(
+  byokRendered && analystProxyHits === hitsBeforeByok
+    ? "OK  stored key bypasses the analyst proxy"
+    : "MISSING stored key bypassed the analyst proxy (proxy call detected)"
+);
+
 // sanity: assert every panel title + a known row is present
 for (const needle of ["Pages", "Sources", "Countries", "Devices", "Operating systems", "/app/estimate", "google", "United States", "desktop", "Linux", "7 online", "Events", "page_view", "estimate_created", "Count"]) {
   const n = await page.getByText(needle).count();
