@@ -18,9 +18,11 @@ const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const Stripe = require("stripe");
+const { reserveQuota } = require("./quota.js");
 
 const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY");
 const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -34,6 +36,26 @@ const PRICES = {
   monthly: "price_1TvTQoDU82Y7dwOs0mUUBVcD", // $19/mo
 };
 const TRIAL_DAYS = 7; // annual only — see the checkout handler
+
+// The included analyst is pinned to one model on one key we own — no runtime
+// model discovery (that is only correct for BYOK, where each key exposes a
+// different model set). See docs/superpowers/specs/2026-07-21-ai-analyst-proxy-design.md.
+const ANALYST_MODEL = "gemini-3.6-flash";
+const ANALYST_CAP = 100;
+
+// Kept in sync with the BYOK system prompt in web/lib/analyst.ts. The proxy
+// holds it server-side so the browser only sends the metrics snapshot.
+const ANALYST_SYSTEM = `You are Aerie's growth analyst. Aerie is a dashboard that shows a developer live metrics for their Firebase projects. You receive a JSON snapshot of one project's real numbers: users, Firestore documents and collections, GA4 traffic (daily active users for the selected window plus the previous window for comparison), traffic sources (top pages, referral sources, countries, devices, operating systems, events), sign-in methods, signups by month, and enabled Firebase services.
+
+Write a short, concrete analysis for the developer who owns this app:
+
+Insights
+- 3 to 5 bullets, ranked by importance. Each grounded in specific numbers from the snapshot (cite them). Call out what is working, what looks like a problem, and anything that looks like bot/crawler noise rather than real users.
+
+Actions
+- 2 to 3 bullets. Specific next moves this developer should make, derived from the insights.
+
+Rules: plain text only — exactly the two section headers above, bullets starting with "- ". No preamble, no closing paragraph, no markdown syntax beyond the bullets. Keep every bullet to 1-2 sentences. If a section of the snapshot is null or empty, don't speculate about it.`;
 
 const ALLOWED_ORIGINS = [
   APP_URL,
@@ -141,6 +163,175 @@ exports.checkout = onRequest(
       res.json({ url: session.url });
     } catch (e) {
       res.status(400).json({ error: String(e.message || e) });
+    }
+  }
+);
+
+// ── analyst ───────────────────────────────────────────────────────────────
+// The Cloud Pro analyst. Verifies the caller, enforces a monthly quota, then
+// relays Gemini's SSE stream to the browser. ZERO RETENTION: the payload and
+// the generated text pass through memory and are never logged or stored. The
+// only Firestore write touches the two counter fields — see quota.js.
+exports.analyst = onRequest(
+  { secrets: [STRIPE_SECRET_KEY, GEMINI_API_KEY], cors: false },
+  async (req, res) => {
+    if (cors(req, res)) return;
+    // A YYYY-MM stamp; used both for the quota period and the reset check.
+    const now = new Date();
+    const period = `${now.getUTCFullYear()}-${String(
+      now.getUTCMonth() + 1
+    ).padStart(2, "0")}`;
+
+    let email, payload;
+    try {
+      const body = req.body || {};
+      email = await verifiedEmail(body.googleToken);
+      payload = body.payload;
+      if (!payload || typeof payload !== "object")
+        throw new Error("missing payload");
+    } catch (e) {
+      // Do not log the body — only the reason.
+      res.status(401).json({ error: String(e.message || e) });
+      return;
+    }
+
+    // Entitlement + quota reservation in one transaction. Reserve BEFORE
+    // calling Gemini so concurrent requests cannot slip past the cap.
+    const ref = subDoc(email);
+    let reserved;
+    try {
+      reserved = await db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        const d = snap.exists ? snap.data() : null;
+        if (!d || !isPro(d.status)) {
+          return { pro: false };
+        }
+        const q = reserveQuota(d, period, ANALYST_CAP);
+        if (!q.allowed) return { pro: true, allowed: false };
+        tx.set(
+          ref,
+          { analystCalls: q.calls, analystPeriod: q.period },
+          { merge: true }
+        );
+        return { pro: true, allowed: true };
+      });
+    } catch (e) {
+      console.error("analyst tx failed", String(e.message || e));
+      res.status(502).json({ error: "analyst unavailable" });
+      return;
+    }
+
+    if (!reserved.pro) {
+      res.status(403).json({ error: "Cloud Pro required" });
+      return;
+    }
+    if (!reserved.allowed) {
+      res.status(429).json({ error: "monthly analyst limit reached" });
+      return;
+    }
+
+    // Call Gemini. If this fails before any token streams, refund the credit.
+    let gRes;
+    try {
+      gRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${ANALYST_MODEL}:streamGenerateContent?alt=sse`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-goog-api-key": GEMINI_API_KEY.value(),
+          },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: ANALYST_SYSTEM }] },
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  { text: `Project snapshot:\n${JSON.stringify(payload)}` },
+                ],
+              },
+            ],
+          }),
+        }
+      );
+    } catch (e) {
+      await refund(ref, period);
+      console.error("analyst fetch failed", String(e.message || e));
+      res.status(502).json({ error: "analyst unavailable" });
+      return;
+    }
+
+    if (!gRes.ok || !gRes.body) {
+      await refund(ref, period);
+      console.error("analyst upstream", gRes.status);
+      res.status(502).json({ error: "analyst unavailable" });
+      return;
+    }
+
+    // Relay the stream. Once headers are sent we cannot change the status, and
+    // the credit is NOT refunded past this point (Gemini has begun billing).
+    res.set("Content-Type", "text/event-stream");
+    res.set("Cache-Control", "no-cache");
+    res.set("Connection", "keep-alive");
+
+    const reader = gRes.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    let usage = null;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() || "";
+        for (const line of lines) {
+          const s = line.trim();
+          if (!s.startsWith("data:")) continue;
+          const data = s.slice(5).trim();
+          if (!data || data === "[DONE]") continue;
+          try {
+            const j = JSON.parse(data);
+            const text = (j.candidates?.[0]?.content?.parts || [])
+              .map((p) => p.text || "")
+              .join("");
+            if (text) res.write(`data: ${JSON.stringify({ text })}\n\n`);
+            if (j.usageMetadata) usage = j.usageMetadata;
+          } catch {
+            // malformed chunk — skip, never log the chunk
+          }
+        }
+      }
+      res.write("data: [DONE]\n\n");
+    } catch (e) {
+      console.error("analyst relay", String(e.message || e));
+    } finally {
+      // Token counts only — safe to log, no payload, no text.
+      if (usage)
+        console.log(
+          "analyst usage",
+          usage.promptTokenCount,
+          usage.candidatesTokenCount
+        );
+      res.end();
+    }
+
+    async function refund(docRef, per) {
+      try {
+        await db.runTransaction(async (tx) => {
+          const snap = await tx.get(docRef);
+          const d = snap.exists ? snap.data() : null;
+          if (d && d.analystPeriod === per && Number(d.analystCalls) > 0) {
+            tx.set(
+              docRef,
+              { analystCalls: Number(d.analystCalls) - 1 },
+              { merge: true }
+            );
+          }
+        });
+      } catch (e) {
+        console.error("analyst refund failed", String(e.message || e));
+      }
     }
   }
 );
