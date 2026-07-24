@@ -44,8 +44,11 @@ export const metadata: Metadata = {
   },
 };
 
-// SoftwareApplication + FAQ structured data for rich results. FAQ mirrors the
-// landing's FAQ section verbatim.
+// Site-wide SoftwareApplication only. The FAQPage lives on app/page.tsx, not
+// here: Google's structured-data policy forbids marking up content that isn't
+// visible on the page, and the landing's FAQ questions do not appear on the
+// /tools and /compare routes. Each of those carries its own FAQPage matching
+// its own visible questions.
 const JSON_LD = {
   "@context": "https://schema.org",
   "@graph": [
@@ -67,44 +70,7 @@ const JSON_LD = {
           description: "$9/mo billed yearly, or $19 month-to-month",
         },
       ],
-    },
-    {
-      "@type": "FAQPage",
-      mainEntity: [
-        {
-          "@type": "Question",
-          name: "Why does Aerie need read and write access to my Google Cloud account?",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "Because the read-only scope does not work for the calls Aerie makes. Firestore's listCollectionIds and Identity Toolkit's accounts:query both reject it. Aerie only ever issues read requests, but Google's permission model offers no narrower grant that still works. The source is public, so you can verify that.",
-          },
-        },
-        {
-          "@type": "Question",
-          name: "Google says this app isn't verified. Should I be worried?",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "That screen appears for any app requesting sensitive Google scopes before verification review completes. Verification is in progress. The code is public and AGPL-3.0, so audit it rather than trusting a label — and self-hosting avoids the warning entirely.",
-          },
-        },
-        {
-          "@type": "Question",
-          name: "What does Aerie store?",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "Your email address and your subscription status. Nothing else. Your project data is read by your browser and never passes through Aerie's servers.",
-          },
-        },
-        {
-          "@type": "Question",
-          name: "What happens to my dashboard if Aerie shuts down?",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "The repository is AGPL-3.0 and public. Fork it and run it. The self-hosted build has every feature and contacts no server of ours.",
-          },
-        },
-      ],
-    },
+    }
   ],
 };
 
