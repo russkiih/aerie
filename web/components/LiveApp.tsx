@@ -2099,33 +2099,34 @@ function Landing({
       <section className="mt-16 text-center sm:mt-24">
         <div className="inline-flex items-center gap-2 rounded-full border border-line bg-panel px-3 py-1 text-[11px] font-medium text-muted">
           <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-          Open source (AGPL-3.0) · never writes · your data stays in your
+          Open source · reads only, never writes · your data stays in your
           browser
         </div>
         <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-semibold tracking-[-.03em] text-ink sm:text-[52px] sm:leading-[1.08]">
-          One dashboard for every Firebase project you own.
+          Stop checking Firebase one project at a time.
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-[16px] leading-relaxed text-muted">
-          Stop clicking through the console project by project. Connect once
-          and see every project&apos;s users, traffic, Firestore data, sources
-          and services in a single warm pane — read live in your browser.
+          Aerie reads your whole Firebase estate live in your browser — every
+          project&apos;s users, traffic, Firestore data and costs in a single
+          view. Open source, and free for your first three projects.
         </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <div className="mt-8 flex flex-col items-center gap-3">
           <button
             onClick={onConnect}
             disabled={!configured}
-            className="inline-flex items-center gap-2.5 rounded-xl bg-accent px-6 py-3 text-[15px] font-semibold text-paper transition-opacity hover:opacity-90 disabled:opacity-40"
+            className="inline-flex items-center gap-2.5 rounded-xl bg-accent px-7 py-3 text-[15px] font-semibold text-paper transition-opacity hover:opacity-90 disabled:opacity-40"
           >
             <GoogleGlyph />
             Continue with Google
           </button>
+          <p className="text-[12.5px] text-faint">Free for 3 projects. No card.</p>
           <a
             href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-xl border border-line bg-panel px-6 py-3 text-[15px] font-medium text-muted transition-colors hover:border-[#4a4239] hover:text-ink"
+            className="text-[13px] font-medium text-faint underline decoration-line3 underline-offset-4 hover:text-muted"
           >
-            Self-host on GitHub ↗
+            Or self-host it free forever ↗
           </a>
         </div>
         {!configured && (
@@ -2150,39 +2151,101 @@ function Landing({
           alt="The Aerie dashboard: estate-wide stats, GA4 traffic chart with previous-period comparison, and per-project cards with sparklines"
           className="relative w-full rounded-[20px] border border-line3 shadow-pop"
         />
+        <p className="mt-3 text-center text-[12.5px] text-fainter">
+          A real six-project estate, read live. Not a mockup.
+        </p>
       </div>
 
-      {/* features */}
+      {/* villain */}
       <section className="mt-24 sm:mt-32">
-        <h2 className="text-center text-2xl font-semibold tracking-[-.02em] text-ink sm:text-3xl">
-          Everything the console scatters, in one pane
-        </h2>
-        <div className="mt-10 grid gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
-          <Feature
-            title="Your whole estate"
-            body="Every project, app and platform — users, Firestore documents, Functions, Storage, Hosting and Realtime DB, live."
-          />
-          <Feature
-            title="GA4 traffic + signups"
-            body="Active users with previous-period comparison on 7/28/90-day windows, and real Auth signups on the same axis."
-          />
-          <Feature
-            title="Source breakdowns"
-            body="Top pages, referral sources, countries, devices, operating systems and events — per project, Vercel-style."
-          />
-          <Feature
-            title="Realtime"
-            body="Who's online right now on each project, straight from GA4 realtime."
-          />
-          <Feature
-            title="AI analyst"
-            body="One click turns a project's numbers into ranked insights and next moves. Bring any key — Anthropic, OpenAI, Gemini, xAI or Groq."
-          />
-          <Feature
-            title="Private by design"
-            body="OAuth happens in your browser; Google's APIs are read directly with your token. No server ever sees your data."
-          />
+        <div className="mx-auto max-w-2xl">
+          <h2 className="text-2xl font-semibold leading-tight tracking-[-.02em] text-ink sm:text-3xl">
+            The console was built for one project at a time.
+          </h2>
+          <div className="mt-6 space-y-5 text-[15.5px] leading-relaxed text-muted">
+            <p>
+              That isn&apos;t an oversight, it&apos;s the architecture.
+              Everything in the Firebase console is scoped to whichever project
+              you selected — which is fine when you have one, and quietly awful
+              when you have six.
+            </p>
+            <p>
+              So the questions that actually matter span projects, and the
+              console can&apos;t answer any of them.{" "}
+              <span className="text-ink">
+                Which app is growing? What am I spending in total? Did something
+                break last night?
+              </span>{" "}
+              Each one means opening every project in turn and holding the
+              numbers in your head.
+            </p>
+            <p>
+              Aerie asks Google the same questions the console does — all of
+              them at once, from your browser — and puts the answers on one
+              page.
+            </p>
+          </div>
         </div>
+      </section>
+
+      {/* three verbs */}
+      <section className="mt-20 grid gap-10 sm:mt-24 sm:grid-cols-3 sm:gap-8">
+        <div>
+          <div className="text-[13px] font-semibold uppercase tracking-[.1em] text-accent">
+            Connect
+          </div>
+          <p className="mt-3 text-[17px] font-semibold leading-snug text-ink">
+            One sign-in, every project.
+          </p>
+          <p className="mt-2 text-[14.5px] leading-relaxed text-muted">
+            Every project you can reach appears. No config file, no service
+            account, no per-project setup.
+          </p>
+        </div>
+        <div>
+          <div className="text-[13px] font-semibold uppercase tracking-[.1em] text-accent">
+            Compare
+          </div>
+          <p className="mt-3 text-[17px] font-semibold leading-snug text-ink">
+            All of it on one page.
+          </p>
+          <p className="mt-2 text-[14.5px] leading-relaxed text-muted">
+            Every project ranked by whatever matters — users, traffic,
+            documents. The comparison the console can&apos;t make.
+          </p>
+        </div>
+        <div>
+          <div className="text-[13px] font-semibold uppercase tracking-[.1em] text-accent">
+            Catch
+          </div>
+          <p className="mt-3 text-[17px] font-semibold leading-snug text-ink">
+            See the bill coming.
+          </p>
+          <p className="mt-2 text-[14.5px] leading-relaxed text-muted">
+            The billing watchdog scans the estate for cost drivers and usage
+            spikes, so a bill surprises you before it arrives, not after.
+          </p>
+        </div>
+      </section>
+
+      {/* deep features */}
+      <section className="mt-20 grid gap-[13px] sm:mt-24 sm:grid-cols-2">
+        <Feature
+          title="Your whole estate, not just the parts that fit on a card"
+          body="Auth users, Firestore documents and collections, GA4 traffic, Hosting sites, Cloud Functions, Storage buckets and Realtime Database — read live, per project."
+        />
+        <Feature
+          title="Traffic with a memory"
+          body="7, 28 and 90-day windows with the previous period drawn alongside, so you can see whether this week is actually better. By page, source, country, device and OS."
+        />
+        <Feature
+          title="Know what it costs before the invoice does"
+          body="The watchdog estimates usage cost across every project, names the drivers, and flags spikes against each project's own baseline. Firebase bills after the fact; this runs before."
+        />
+        <Feature
+          title="An analyst that reads your numbers"
+          body="Insights and next moves grounded in your real data — what's working, what's a problem, what's bot traffic. Included with Pro; free and self-hosted users bring their own key."
+        />
       </section>
 
       {/* detail: modal + AI */}
@@ -2227,36 +2290,86 @@ function Landing({
         className="mt-16 w-full rounded-[20px] border border-line3 shadow-pop"
       />
 
-      {/* open source */}
-      <section className="mt-24 rounded-[20px] border border-line bg-gradient-to-b from-panel to-inset p-8 text-center shadow-card sm:mt-32 sm:p-12">
-        <h2 className="text-2xl font-semibold tracking-[-.02em] text-ink sm:text-3xl">
-          Free forever if you self-host
-        </h2>
-        <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-relaxed text-muted">
-          Aerie is AGPL-3.0 open source. Clone the repo, create your own Google
-          OAuth client, and deploy the static bundle anywhere — Firebase
-          Hosting&apos;s free tier works. Every feature, no caps, no account
-          with us. The cloud version exists for people who&apos;d rather skip
-          the setup.
-        </p>
-        <a
-          href={GITHUB_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-7 inline-flex items-center gap-2 rounded-xl border border-line bg-panel px-6 py-3 text-[15px] font-medium text-muted transition-colors hover:border-[#4a4239] hover:text-ink"
-        >
-          Read the source ↗
-        </a>
+      {/* trust — the section that earns the click */}
+      <section className="mt-24 rounded-[20px] border border-line bg-gradient-to-b from-panel to-inset p-8 shadow-card sm:mt-32 sm:p-12">
+        <div className="mx-auto max-w-2xl">
+          <h2 className="text-2xl font-semibold leading-tight tracking-[-.02em] text-ink sm:text-3xl">
+            You&apos;re about to give a dashboard access to your Google Cloud
+            account.
+          </h2>
+          <p className="mt-5 text-[15.5px] leading-relaxed text-muted">
+            That&apos;s a real ask, so here&apos;s exactly what happens.
+          </p>
+          <ul className="mt-7 space-y-5 text-[15px] leading-relaxed text-muted">
+            <li>
+              <span className="font-semibold text-ink">
+                Aerie only ever reads.
+              </span>{" "}
+              It never writes, deletes, or modifies anything in your projects.
+            </li>
+            <li>
+              <span className="font-semibold text-ink">
+                Your data never reaches our servers.
+              </span>{" "}
+              Your browser talks straight to Google&apos;s APIs and renders the
+              result. There&apos;s no backend in that path at all.
+            </li>
+            <li>
+              <span className="font-semibold text-ink">
+                Your Google Cloud token stays in your browser.
+              </span>{" "}
+              The hosted version sends only a limited identity token — enough to
+              check your subscription, and useless for anything else.
+            </li>
+            <li>
+              <span className="font-semibold text-ink">We store one thing:</span>{" "}
+              your email address and which plan you&apos;re on. That&apos;s the
+              entire database.
+            </li>
+            <li>
+              <span className="font-semibold text-ink">
+                You&apos;ll see a warning from Google saying this app isn&apos;t
+                verified.
+              </span>{" "}
+              That&apos;s accurate — verification is in progress. It appears
+              because Aerie requests broad Google Cloud scopes, which it needs
+              because the read-only variants of those APIs reject the calls it
+              makes. Click <em>Advanced → Continue</em> if you&apos;re
+              comfortable; if you&apos;d rather not be, self-host it instead and
+              the question disappears.
+            </li>
+          </ul>
+          <p className="mt-7 text-[15px] leading-relaxed text-muted">
+            And you don&apos;t have to take any of this on faith. Every line is
+            AGPL-3.0 and public.
+          </p>
+          <a
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl border border-line3 bg-panel px-5 py-2.5 text-[14px] font-semibold text-ink transition-colors hover:border-fainter"
+          >
+            Read the source ↗
+          </a>
+          <figure className="mt-12 border-l-2 border-accent pl-5">
+            <blockquote className="text-[15px] leading-relaxed text-muted">
+              I built Aerie because I was opening six Firebase consoles every
+              morning to answer one question. Three years on Firebase, six
+              projects of my own, and this is the tool I wanted to exist. Every
+              screenshot on this page is my real estate.
+            </blockquote>
+            <figcaption className="mt-3 text-[13px] text-faint">
+              — the developer who built it
+            </figcaption>
+          </figure>
+        </div>
       </section>
 
       {/* pricing */}
-      <section className="mt-24 sm:mt-32">
+      <section id="pricing" className="mt-24 scroll-mt-6 sm:mt-32">
         <h2 className="text-center text-2xl font-semibold tracking-[-.02em] text-ink sm:text-3xl">
-          Simple pricing
+          Free for three projects. Free forever if you self-host.
         </h2>
-        <p className="mt-3 text-center text-[13px] font-medium text-faint">
-          Early access: every Pro feature is free while billing rolls out.
-        </p>
         <div className="mt-10 grid gap-[13px] lg:grid-cols-3">
           <PriceCard
             name="Self-hosted"
@@ -2300,6 +2413,73 @@ function Landing({
             onClick={onConnect}
           />
         </div>
+        <p className="mx-auto mt-8 max-w-lg text-center text-[13.5px] leading-relaxed text-faint">
+          No lock-in by construction: if you ever stop wanting to pay, take the
+          code and run it yourself. That&apos;s what the licence is for.
+        </p>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="mx-auto mt-24 max-w-2xl scroll-mt-6 sm:mt-32">
+        <h2 className="text-2xl font-semibold tracking-[-.02em] text-ink sm:text-3xl">
+          Questions worth asking
+        </h2>
+        <div className="mt-8 divide-y divide-line border-y border-line">
+          {[
+            {
+              q: "Why does it need read and write access to my Google Cloud account?",
+              a: "Because the read-only scope doesn't work for the calls Aerie makes — Firestore's listCollectionIds and Identity Toolkit's accounts:query both reject it. Aerie only ever issues reads, but Google's permission model doesn't offer a narrower grant that still works. You can verify that in the source.",
+            },
+            {
+              q: "Google says this app isn't verified. Should I be worried?",
+              a: "That screen appears for any app requesting sensitive scopes before Google's verification review completes. Verification is in progress. The code is public, so audit it rather than trusting the label — and if you'd rather not click through a warning, self-hosting avoids it.",
+            },
+            {
+              q: "What do you store?",
+              a: "Your email address and your subscription status. Nothing else. Your project data is read by your browser and never passes through our servers.",
+            },
+            {
+              q: "Why $9 when I could self-host for free?",
+              a: "You're paying to skip creating your own Google OAuth client and hosting the thing. If that's an afternoon you'd rather keep, Pro is worth it. If it isn't, self-host — the feature set is identical and that's deliberate.",
+            },
+            {
+              q: "Does this work if I only have one Firebase project?",
+              a: "It works, but it's not really for you. Aerie earns its place at three or more projects, which is why the free tier stops there.",
+            },
+            {
+              q: "What happens to my dashboard if Aerie shuts down?",
+              a: "The repository is AGPL-3.0 and public. Fork it and run it — the self-hosted build has every feature and talks to no server of ours.",
+            },
+          ].map(({ q, a }) => (
+            <details key={q} className="group py-5">
+              <summary className="flex cursor-pointer items-start justify-between gap-4 list-none text-[15.5px] font-semibold text-ink [&::-webkit-details-marker]:hidden">
+                {q}
+                <span className="mt-1 shrink-0 text-[18px] font-normal text-faint transition-transform group-open:rotate-45">
+                  +
+                </span>
+              </summary>
+              <p className="mt-3 text-[14.5px] leading-relaxed text-muted">{a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      {/* closing CTA */}
+      <section className="mt-24 border-t border-line pt-16 text-center sm:mt-32">
+        <h2 className="text-2xl font-semibold tracking-[-.02em] text-ink sm:text-3xl">
+          Every project you own, on one page.
+        </h2>
+        <p className="mt-4 text-[15.5px] text-muted">
+          Free for three. Two minutes to find out.
+        </p>
+        <button
+          onClick={onConnect}
+          disabled={!configured}
+          className="mt-8 inline-flex items-center gap-2.5 rounded-xl bg-accent px-7 py-3 text-[15px] font-semibold text-paper transition-opacity hover:opacity-90 disabled:opacity-40"
+        >
+          <GoogleGlyph />
+          Continue with Google
+        </button>
       </section>
 
       {/* footer */}
