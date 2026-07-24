@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://aerie-dashboard-app.web.app/sitemap.xml
