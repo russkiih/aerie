@@ -7,6 +7,7 @@
 // The provider is auto-detected from the key's prefix.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { backendToken } from "./oauth";
 
 // The billing Functions base — same host the tier/checkout calls use.
 const FN = "https://us-central1-aerie-dashboard-app.cloudfunctions.net";
@@ -307,10 +308,14 @@ export async function runAnalystViaCloud(
 ): Promise<string> {
   let res: Response;
   try {
+    // Send an identity-only token when we can mint one silently; fall back
+    // to the full cloud-platform token so a failure here never costs a
+    // subscriber their entitlement (see oauth.ts backendToken()).
+    const token = await backendToken(googleToken);
     res = await fetch(`${FN}/analyst`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ googleToken, payload }),
+      body: JSON.stringify({ googleToken: token, payload }),
     });
   } catch {
     // Offline, DNS, CORS — never surface the browser's raw "Failed to fetch".

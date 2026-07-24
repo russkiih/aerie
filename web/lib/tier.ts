@@ -16,6 +16,8 @@
 // enforcement would require the server to fetch your data, which is exactly
 // the architecture this project refuses.
 
+import { backendToken } from "./oauth";
+
 export const IS_CLOUD = process.env.NEXT_PUBLIC_AERIE_CLOUD === "1";
 
 export const FREE_PROJECT_LIMIT = 3;
@@ -41,10 +43,14 @@ export function initialTier(): Tier {
 export async function fetchTier(googleToken: string): Promise<Tier> {
   if (!IS_CLOUD) return "pro";
   try {
+    // Send an identity-only token when we can mint one silently; fall back to
+    // the full cloud-platform token so a failure here never costs a
+    // subscriber their entitlement (see oauth.ts backendToken()).
+    const token = await backendToken(googleToken);
     const r = await fetch(`${FN}/tier`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ googleToken }),
+      body: JSON.stringify({ googleToken: token }),
     });
     const d = await r.json();
     return d && d.tier === "pro" ? "pro" : "free";
@@ -59,10 +65,14 @@ export async function startCheckout(
   googleToken: string,
   plan: Plan
 ): Promise<never | void> {
+  // Send an identity-only token when we can mint one silently; fall back to
+  // the full cloud-platform token so a failure here never costs a
+  // subscriber their entitlement (see oauth.ts backendToken()).
+  const token = await backendToken(googleToken);
   const r = await fetch(`${FN}/checkout`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ googleToken, plan }),
+    body: JSON.stringify({ googleToken: token, plan }),
   });
   const d = await r.json().catch(() => ({}));
   if (!d.url) {
