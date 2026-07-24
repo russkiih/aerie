@@ -1,6 +1,7 @@
 # Landing Page Brief — Aerie
 
-> Status: **awaiting approval**. No code gets written until you sign off on this.
+> Status: **approved and built**. Page lives at `web/public/lp.html`, deployed
+> to `/lp.html`. This brief is the record of why the page says what it says.
 
 ## The one thing
 
@@ -58,10 +59,10 @@ Neither is manufactured.
 | Reads live in the browser, nothing stored | True and architecturally enforced; readable in the source | **USE** |
 | Open source, AGPL-3.0 | Public repo | **USE** |
 | Never writes to your projects | True — Aerie only ever issues read requests | **USE** |
-| Built by someone running a real multi-project estate | True; the screenshots are your own live 12-project estate | **USE** |
+| Built by someone running a real multi-project estate | True; the screenshots are your own live 6-project estate | **USE** |
 | Self-hosting is free forever, no caps | True | **USE** — doubles as risk reversal |
 | Billing watchdog surfaces cost drivers and spikes | Feature exists and works | **USE the capability, claim no outcomes** — no case study of it having saved anyone money yet |
-| Founder: 3 years on Firebase, 12 projects of their own | Confirmed by owner; screenshots are that estate | **USE** — estate leads, years support |
+| Founder: 3 years on Firebase, 6 projects of their own | Confirmed by owner; the screenshots show exactly that estate (`PROJECTS 6 connected`) | **USE** — estate leads, years support |
 | Trusted by N developers / N teams | None | **CUT** |
 | Testimonials, ratings, customer logos | None | **CUT** — no Wall of Love, no credibility strip, no hard-numbers band |
 | "Saves you X hours a week" | No measurement | **CUT** |
@@ -143,7 +144,9 @@ Three real screenshots, captioned:
 - **`modal.png`** — "One project, opened up: services, sign-in methods, cost
   drivers, and the AI analyst's read on it."
 
-*Note: these are screenshots of a real 12-project estate, not mockups.*
+*Note: these are screenshots of a real 6-project estate, not mockups. The count
+matches what the overview screenshot visibly shows — a number the page cites must
+survive a visitor checking it against the image right next to it.*
 
 ---
 
@@ -243,12 +246,11 @@ Three real screenshots, captioned:
 
 **Founder note (first person — it's a founder claim, so it shouldn't hide in
 brand voice):**
-> I built Aerie because I was opening twelve Firebase consoles every morning to
-> answer one question. Three years on Firebase, twelve projects of my own, and
-> this is the tool I wanted to exist. Every screenshot on this page is my real
-> estate.
+> I built Aerie because I was opening six Firebase consoles every morning to
+> answer one question. Three years on Firebase, six projects of my own, and this
+> is the tool I wanted to exist. Every screenshot on this page is my real estate.
 
-*Framing note: the twelve-project estate is doing more work here than the three
+*Framing note: the six-project estate is doing more work here than the three
 years, because running a multi-project estate is precisely the credential this
 product needs. Both are true; the estate leads.*
 
