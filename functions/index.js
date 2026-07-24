@@ -37,10 +37,19 @@ const PRICES = {
 };
 const TRIAL_DAYS = 7; // annual only — see the checkout handler
 
-// The included analyst is pinned to one model on one key we own — no runtime
-// model discovery (that is only correct for BYOK, where each key exposes a
-// different model set). See docs/superpowers/specs/2026-07-21-ai-analyst-proxy-design.md.
-const ANALYST_MODEL = "gemini-3.6-flash";
+// The included analyst runs on one key we own — no runtime model discovery
+// (that is only correct for BYOK, where each key exposes a different model
+// set). See docs/superpowers/specs/2026-07-21-ai-analyst-proxy-design.md.
+//
+// Ordered fallback chain. Google retires Gemini model IDs regularly, and a
+// single pinned ID means the paid feature goes fully dark the day that
+// happens. Each entry is tried in order until one responds; all are Flash
+// tier, so the spend ceiling holds whichever one serves.
+const ANALYST_MODELS = [
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-2.5-flash",
+];
 const ANALYST_CAP = 100;
 
 // The real UI snapshot is a few KB. This is not a tuning knob — it is the
@@ -249,48 +258,70 @@ exports.analyst = onRequest(
       return;
     }
 
-    // Call Gemini. If this fails before any token streams, refund the credit.
-    let gRes;
-    try {
-      gRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${ANALYST_MODEL}:streamGenerateContent?alt=sse`,
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "x-goog-api-key": GEMINI_API_KEY.value(),
-          },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: ANALYST_SYSTEM }] },
-            contents: [
-              {
-                role: "user",
-                parts: [
-                  { text: `Project snapshot:\n${JSON.stringify(payload)}` },
-                ],
-              },
-            ],
-            generationConfig: {
-              // maxOutputTokens caps thinking + visible output COMBINED, so
-              // leave headroom above what the answer alone needs (~400 tokens
-              // for 8 short bullets). thinkingLevel is the Gemini 3 control;
-              // the legacy thinkingBudget is rejected alongside it with a 400.
-              maxOutputTokens: 4096,
-              thinkingConfig: { thinkingLevel: "low" },
+    // Call Gemini, trying each model in ANALYST_MODELS in order until one
+    // responds. A thrown fetch (network) or a non-OK response both count as
+    // "this model did not work for us" and move on to the next. The credit
+    // is refunded exactly once, and only if the entire chain fails — never
+    // per-attempt, which would multiply-decrement the counter. This all
+    // happens before any headers are sent, so switching models mid-loop is
+    // still safe.
+    let gRes = null;
+    let servedModel = null;
+    for (const model of ANALYST_MODELS) {
+      let attempt;
+      try {
+        attempt = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`,
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-goog-api-key": GEMINI_API_KEY.value(),
             },
-          }),
-        }
-      );
-    } catch (e) {
-      await refund(ref, period);
-      console.error("analyst fetch failed", String(e.message || e));
-      res.status(502).json({ error: "analyst unavailable" });
-      return;
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: ANALYST_SYSTEM }] },
+              contents: [
+                {
+                  role: "user",
+                  parts: [
+                    { text: `Project snapshot:\n${JSON.stringify(payload)}` },
+                  ],
+                },
+              ],
+              generationConfig: {
+                // maxOutputTokens caps thinking + visible output COMBINED, so
+                // leave headroom above what the answer alone needs (~400
+                // tokens for 8 short bullets). thinkingLevel is the Gemini 3
+                // control; the legacy thinkingBudget is rejected alongside it
+                // with a 400, so only ever send the one that matches this
+                // model's generation.
+                maxOutputTokens: 4096,
+                thinkingConfig: model.startsWith("gemini-3")
+                  ? { thinkingLevel: "low" }
+                  : { thinkingBudget: 512 },
+              },
+            }),
+          }
+        );
+      } catch (e) {
+        // Model ID and error message are ours, not user content — safe to log.
+        console.error("analyst model fallback", model, String(e.message || e));
+        continue;
+      }
+
+      if (!attempt.ok || !attempt.body) {
+        console.error("analyst model fallback", model, attempt.status);
+        continue;
+      }
+
+      gRes = attempt;
+      servedModel = model;
+      break;
     }
 
-    if (!gRes.ok || !gRes.body) {
+    if (!gRes) {
       await refund(ref, period);
-      console.error("analyst upstream", gRes.status);
+      console.error("analyst upstream exhausted all fallback models");
       res.status(502).json({ error: "analyst unavailable" });
       return;
     }
@@ -360,6 +391,7 @@ exports.analyst = onRequest(
       if (usage)
         console.log(
           "analyst usage",
+          servedModel,
           usage.promptTokenCount,
           usage.candidatesTokenCount,
           usage.thoughtsTokenCount,
