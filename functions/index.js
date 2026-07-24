@@ -52,6 +52,12 @@ const ANALYST_MODELS = [
 ];
 const ANALYST_CAP = 100;
 
+// Each fallback attempt gets its own deadline. Without one, a hung model
+// (connected but never responding) eats the whole function budget, the
+// platform kills the invocation before the next model is tried, and the
+// reserved credit is never refunded.
+const ANALYST_ATTEMPT_TIMEOUT_MS = 20000;
+
 // The real UI snapshot is a few KB. This is not a tuning knob — it is the
 // ceiling that makes the monthly cap bound SPEND and not merely call count.
 const ANALYST_MAX_PAYLOAD_BYTES = 64 * 1024;
@@ -269,6 +275,11 @@ exports.analyst = onRequest(
     let servedModel = null;
     for (const model of ANALYST_MODELS) {
       let attempt;
+      // Bounds only time-to-response-headers for THIS attempt. Cleared in
+      // every branch below — including the winning one, before the relay
+      // starts — so it can never fire against the SSE body read.
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), ANALYST_ATTEMPT_TIMEOUT_MS);
       try {
         attempt = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`,
@@ -301,19 +312,28 @@ exports.analyst = onRequest(
                   : { thinkingBudget: 512 },
               },
             }),
+            signal: ctl.signal,
           }
         );
       } catch (e) {
+        // Includes the timeout abort surfacing as an AbortError — treated
+        // exactly like any other failed attempt: log and try the next model.
         // Model ID and error message are ours, not user content — safe to log.
         console.error("analyst model fallback", model, String(e.message || e));
+        clearTimeout(timer);
         continue;
       }
 
       if (!attempt.ok || !attempt.body) {
         console.error("analyst model fallback", model, attempt.status);
+        clearTimeout(timer);
         continue;
       }
 
+      // Success: disarm the deadline now. The relay below reads the body
+      // over a potentially long stream, and ctl.signal must not still be
+      // able to fire against it.
+      clearTimeout(timer);
       gRes = attempt;
       servedModel = model;
       break;
