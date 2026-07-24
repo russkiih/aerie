@@ -52,3 +52,10 @@ web/data/firestore.json.local
 # landing-page preview scratch
 .lp2/
 .lp-preview/
+
+# stray curl/verification output
+r.html
+v.html
+i*.html
+p*.js
+tw-*.js
