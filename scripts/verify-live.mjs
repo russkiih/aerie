@@ -460,6 +460,14 @@ await page.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
 MOCK_TIER = "pro";
 await page.reload();
 await page.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
+// Entitlement arrives asynchronously (mint an identity token, then call
+// /tier), so wait for the free pill to clear rather than sampling the instant
+// the projects render — that only ever passed because the mock replied
+// instantly.
+await page
+  .getByText("Free plan · Upgrade")
+  .waitFor({ state: "detached", timeout: 15000 })
+  .catch(() => {});
 console.log(
   (await page.getByText("Free plan · Upgrade").count()) === 0
     ? "OK  pro granted by backend, pill gone"

@@ -7,9 +7,10 @@ clicking through the Firebase console project by project.
 ![The Aerie dashboard](web/public/shots/overview.png)
 
 This repo contains the **live reader app**: a login-gated, per-user dashboard.
-A user clicks *Continue with Google*, grants read-only scopes, and their entire
-Firebase estate is read **live in the browser** — no server, no stored tokens,
-nothing baked into the page. Each person only ever sees their own account.
+A user clicks *Continue with Google*, grants Google Cloud scopes, and their
+entire Firebase estate is read **live in the browser** — no server, no stored
+tokens, nothing baked into the page. Aerie only ever issues read requests.
+Each person only ever sees their own account.
 
 **Cloud version (zero setup):** https://aerie-dashboard-app.web.app — free for
 up to 3 projects; a Pro tier ($9/mo billed yearly with a 7-day trial, or
@@ -21,9 +22,14 @@ $19 month-to-month) unlocks unlimited projects and the hosted AI analyst.
 
 ## What the app does
 
-- **Continue with Google** — Google Identity Services requests read-only scopes
-  (`cloud-platform`, `analytics.readonly`); the access token stays in the
-  browser for the session and is cached (with expiry) so reloads don't re-prompt.
+- **Continue with Google** — Google Identity Services requests `cloud-platform`
+  and `analytics.readonly`. `cloud-platform` is not the read-only variant
+  (Firestore `listCollectionIds` and Identity Toolkit `accounts:query` reject
+  that one), so the grant permits writes even though Aerie only ever issues
+  reads. The access token stays in the browser for the session, cached with
+  expiry so reloads don't re-prompt; it is never sent to Aerie's backend — the
+  cloud build mints a separate identity-only token (`openid email profile`) for
+  the billing endpoints.
 - **Overview** — projects, total users, apps, Firestore documents, and GA4
   active users / events across the whole estate, plus an account-wide traffic
   chart (metric toggle: Active / New users / Events · range toggle: 7 / 28 / 90

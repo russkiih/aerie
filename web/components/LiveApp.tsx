@@ -2099,7 +2099,8 @@ function Landing({
       <section className="mt-16 text-center sm:mt-24">
         <div className="inline-flex items-center gap-2 rounded-full border border-line bg-panel px-3 py-1 text-[11px] font-medium text-muted">
           <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-          Open source (AGPL-3.0) · read-only · nothing stored on our servers
+          Open source (AGPL-3.0) · never writes · your data stays in your
+          browser
         </div>
         <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-semibold tracking-[-.03em] text-ink sm:text-[52px] sm:leading-[1.08]">
           One dashboard for every Firebase project you own.
@@ -2304,9 +2305,11 @@ function Landing({
       {/* footer */}
       <footer className="mt-24 border-t border-line pt-8 text-center sm:mt-32">
         <p className="mx-auto max-w-md text-[11.5px] leading-relaxed text-faint">
-          Aerie requests read-only Google scopes and reads your data directly
-          in your browser. Your access token is never sent to or stored on our
-          servers.
+          Aerie reads your Google data directly in your browser and never
+          writes to it. Your Google Cloud access token stays in the browser —
+          the hosted version sends only a limited identity token to check your
+          subscription, and stores nothing but your email and plan.
+          Self-hosted builds contact no server at all.
         </p>
         <div className="mt-5 flex items-center justify-center gap-6 text-[12px] font-medium text-faint">
           <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="hover:text-ink">

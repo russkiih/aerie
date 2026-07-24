@@ -132,7 +132,33 @@ export async function requestToken(interactive = true): Promise<string> {
 // Google issues this narrower token without a popup. Never throws: any
 // failure (no prior grant, GIS not loaded, popup blocked, network error)
 // resolves to null so callers can fall back to the full token.
+//
+// It must also always SETTLE, not merely never throw. If accounts.google.com
+// is blocked (ad blocker, corporate proxy) or GIS never fires its callback,
+// an un-raced promise hangs forever — and since fetchTier awaits this, a
+// paying subscriber would sit on "free" indefinitely. The deadline below is
+// what makes the fallback in backendToken() actually reachable.
+// Short on purpose: this sits in front of the entitlement check, so every
+// millisecond here is a millisecond a paying subscriber is still rendered as
+// "free". A genuine silent grant returns in well under this.
+const IDENTITY_TOKEN_TIMEOUT_MS = 1500;
+
+// Once GIS has failed us in this page's lifetime it will almost certainly keep
+// failing (blocked domain, no session), so remember it rather than paying the
+// deadline again on every backend call.
+let identityUnavailable = false;
+
 export async function requestIdentityToken(): Promise<string | null> {
+  if (identityUnavailable) return null;
+  const deadline = new Promise<null>((resolve) =>
+    setTimeout(() => resolve(null), IDENTITY_TOKEN_TIMEOUT_MS)
+  );
+  const token = await Promise.race([mintIdentityToken(), deadline]);
+  if (!token) identityUnavailable = true;
+  return token;
+}
+
+async function mintIdentityToken(): Promise<string | null> {
   try {
     if (!GOOGLE_CLIENT_ID) return null;
     const cached = getStoredToken(IDENTITY_KEY);
