@@ -34,6 +34,16 @@ firebase-debug.log
 key.json
 .auth-tmp/
 
+# environment files — NEVER commit. This repo is public and the Functions hold
+# live Stripe and Gemini secrets, so the documented local-emulator workflow
+# (`firebase functions:secrets:get` into functions/.env) is one `git add -A`
+# away from publishing them. Covers Firebase (.env, .env.<project>,
+# .secret.local) and Next.js (.env.local).
+.env
+.env.*
+!.env.example
+.secret.local
+
 # scripts
 scripts/node_modules/
 web/data/firestore.json.local
