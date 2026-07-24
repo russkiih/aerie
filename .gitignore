@@ -48,3 +48,7 @@ key.json
 scripts/node_modules/
 web/data/firestore.json.local
 .superpowers/
+
+# landing-page preview scratch
+.lp2/
+.lp-preview/
