@@ -1,3 +1,4 @@
+import { SiteFooter } from "@/components/SiteFooter";
 import Link from "next/link";
 import { Logo } from "@/components/ui";
 
@@ -49,34 +50,7 @@ export function CompareHeader() {
 }
 
 export function CompareFooter() {
-  return (
-    <footer className="mt-24 border-t border-line pt-8 text-center sm:mt-32">
-      <p className="mx-auto max-w-md text-[11.5px] leading-relaxed text-faint">
-        Aerie reads your Google data directly in your browser and never
-        writes to it. The hosted version stores only your email and plan.
-        Self-hosted builds contact no server at all.
-      </p>
-      <div className="mt-5 flex items-center justify-center gap-6 text-[12px] font-medium text-faint">
-        <a
-          href={GITHUB_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-ink"
-        >
-          GitHub
-        </a>
-        <a
-          href={`${GITHUB_URL}/blob/main/LICENSE`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-ink"
-        >
-          AGPL-3.0
-        </a>
-        <span>© {new Date().getFullYear()} Aerie</span>
-      </div>
-    </footer>
-  );
+  return <SiteFooter />;
 }
 
 export type CompareRow = {

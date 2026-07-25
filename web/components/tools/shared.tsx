@@ -1,3 +1,4 @@
+import { SiteFooter } from "@/components/SiteFooter";
 // Shared chrome for the /tools/* cost calculators: nav, the "estimate, not a
 // quote" disclosure, the Aerie CTA, and cross-links that tie the three tools
 // into one cluster. Server-renderable — no client state lives here.
@@ -151,21 +152,7 @@ export function ToolShell({
       <AerieCta />
       <CrossLinks current={current} />
 
-      <footer className="mt-16 border-t border-line pt-8 text-center">
-        <div className="flex items-center justify-center gap-6 text-[12px] font-medium text-faint">
-          <a
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-ink"
-          >
-            GitHub
-          </a>
-          <Link href="/" className="hover:text-ink">
-            Aerie
-          </Link>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

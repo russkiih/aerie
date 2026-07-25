@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { SiteFooter } from "@/components/SiteFooter";
 import {
   requestToken,
   isConfigured,
@@ -2482,30 +2483,7 @@ function Landing({
         </button>
       </section>
 
-      {/* footer */}
-      <footer className="mt-24 border-t border-line pt-8 text-center sm:mt-32">
-        <p className="mx-auto max-w-md text-[11.5px] leading-relaxed text-faint">
-          Aerie reads your Google data directly in your browser and never
-          writes to it. Your Google Cloud access token stays in the browser —
-          the hosted version sends only a limited identity token to check your
-          subscription, and stores nothing but your email and plan.
-          Self-hosted builds contact no server at all.
-        </p>
-        <div className="mt-5 flex items-center justify-center gap-6 text-[12px] font-medium text-faint">
-          <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="hover:text-ink">
-            GitHub
-          </a>
-          <a
-            href={`${GITHUB_URL}/blob/main/LICENSE`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-ink"
-          >
-            AGPL-3.0
-          </a>
-          <span>© {new Date().getFullYear()} Aerie</span>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
