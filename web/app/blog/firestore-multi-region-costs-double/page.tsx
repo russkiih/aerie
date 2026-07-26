@@ -10,7 +10,12 @@ import {
   ToolCallout,
 } from "@/components/blog/shared";
 import { POSTS } from "@/lib/site-nav";
-import { FIRESTORE, VERIFIED_ON, usd } from "@/lib/firebase-pricing";
+import {
+  FIRESTORE,
+  FREE_TIER,
+  VERIFIED_ON,
+  usd,
+} from "@/lib/firebase-pricing";
 
 const SITE = "https://aerie-dashboard-app.web.app";
 const POST = POSTS[1];
@@ -44,15 +49,30 @@ const monthlyReads = 10_000_000;
 const monthlyWrites = 2_000_000;
 const monthlyDeletes = 500_000;
 
+// Firestore's free quotas are DAILY, so bill only what exceeds them over a
+// 30-day month. Skipping this is the standard way these comparisons come out
+// overstated — and it would put this post at odds with the pricing
+// calculator, which subtracts the same allowance.
+const DAYS = 30;
+const billable = (monthly: number, freePerDay: number) =>
+  Math.max(0, monthly - freePerDay * DAYS);
+
+const billableReads = billable(monthlyReads, FREE_TIER.firestore.readsPerDay);
+const billableWrites = billable(monthlyWrites, FREE_TIER.firestore.writesPerDay);
+const billableDeletes = billable(
+  monthlyDeletes,
+  FREE_TIER.firestore.deletesPerDay
+);
+
 function monthlyCost(rates: {
   readsPer100k: number;
   writesPer100k: number;
   deletesPer100k: number;
 }) {
   return (
-    (monthlyReads / 100_000) * rates.readsPer100k +
-    (monthlyWrites / 100_000) * rates.writesPer100k +
-    (monthlyDeletes / 100_000) * rates.deletesPer100k
+    (billableReads / 100_000) * rates.readsPer100k +
+    (billableWrites / 100_000) * rates.writesPer100k +
+    (billableDeletes / 100_000) * rates.deletesPer100k
   );
 }
 
@@ -113,9 +133,12 @@ export default function Page() {
         Take a workload doing {monthlyReads.toLocaleString()} reads,{" "}
         {monthlyWrites.toLocaleString()} writes and{" "}
         {monthlyDeletes.toLocaleString()} deletes in a month — a mid-size
-        app, not an outlier. On {SINGLE.label} that&apos;s{" "}
-        {usd(singleMonthly)}. On {NAM5.label}, the same operations, same
-        volume, are {usd(nam5Monthly)}.
+        app, not an outlier. Subtract the daily free tier first — that covers{" "}
+        {(FREE_TIER.firestore.readsPerDay * DAYS).toLocaleString()} reads and
+        all {monthlyDeletes.toLocaleString()} deletes — and on{" "}
+        {SINGLE.label} what&apos;s left bills {usd(singleMonthly)}. On{" "}
+        {NAM5.label}, the same operations at the same volume are{" "}
+        {usd(nam5Monthly)}.
       </P>
       <P>
         The gap is {usd(monthlyDifference)} a month for identical usage.
