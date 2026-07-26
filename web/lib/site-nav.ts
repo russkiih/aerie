@@ -54,8 +54,54 @@ export const COMPARISONS: NavItem[] = [
   },
 ];
 
-// When the blog ships, add it here and it appears in every footer at once:
-//   export const POSTS: NavItem[] = [...]
-// then add a fourth column in SiteFooter and the URLs to sitemap.xml.
+export type Post = NavItem & {
+  blurb: string;
+  /** ISO date — feeds <time datetime> and BlogPosting.datePublished. */
+  published: string;
+  publishedLabel: string;
+  readingMinutes?: number;
+};
+
+// Posts are ordered newest first; the blog index and the "keep reading"
+// cards both read this order. Each post exists to answer one informational
+// question and hand the reader the tool that answers it for their own numbers.
+export const POSTS: Post[] = [
+  {
+    href: "/blog/why-is-my-firebase-bill-so-high/",
+    label: "Why is my Firebase bill so high?",
+    blurb:
+      "The five billing rules that produce almost every surprise Firestore invoice — including the two that charge you for reads you never made.",
+    published: "2026-07-24",
+    publishedLabel: "24 July 2026",
+    readingMinutes: 7,
+  },
+  {
+    href: "/blog/firestore-multi-region-costs-double/",
+    label: "Firestore multi-region costs exactly double. Most people never chose it.",
+    blurb:
+      "nam5 bills at twice us-central1 for every read, write and delete — and the choice is made once, at project creation, in a dropdown most developers skim.",
+    published: "2026-07-24",
+    publishedLabel: "24 July 2026",
+    readingMinutes: 5,
+  },
+  {
+    href: "/blog/firebase-spark-vs-blaze/",
+    label: "Spark vs Blaze: what actually forces the upgrade",
+    blurb:
+      "It is rarely the quota you were watching. A walk through every Spark limit, and the one that pushes most projects onto Blaze before they outgrow anything.",
+    published: "2026-07-24",
+    publishedLabel: "24 July 2026",
+    readingMinutes: 6,
+  },
+  {
+    href: "/blog/monitor-multiple-firebase-projects/",
+    label: "How to monitor multiple Firebase projects",
+    blurb:
+      "The console is scoped to one project by design. Here are the four approaches people actually use, and what each one costs in time or money.",
+    published: "2026-07-24",
+    publishedLabel: "24 July 2026",
+    readingMinutes: 6,
+  },
+];
 
 export const GITHUB_URL = "https://github.com/russkiih/aerie";

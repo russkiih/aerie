@@ -4,8 +4,8 @@
   Listing a URL that 404s is an active SEO negative, so this file is written
   against what exists, not against what is planned.
 
-  When the custom domain lands, replace the host in all eight <loc> values and
-  in web/public/robots.txt, plus the metadataBase in web/app/layout.tsx.
+  When the custom domain lands, replace the host in every loc value and in
+  web/public/robots.txt, plus metadataBase in web/app/layout.tsx.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
@@ -31,7 +31,34 @@
     <priority>0.9</priority>
   </url>
 
-  <!-- Comparison pages: commercial-intent traffic. -->
+  <!-- Blog: informational intent, funnels into the tools. -->
+  <url>
+    <loc>https://aerie-dashboard-app.web.app/blog/</loc>
+    <lastmod>2026-07-24</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://aerie-dashboard-app.web.app/blog/why-is-my-firebase-bill-so-high/</loc>
+    <lastmod>2026-07-24</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://aerie-dashboard-app.web.app/blog/firestore-multi-region-costs-double/</loc>
+    <lastmod>2026-07-24</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://aerie-dashboard-app.web.app/blog/firebase-spark-vs-blaze/</loc>
+    <lastmod>2026-07-24</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://aerie-dashboard-app.web.app/blog/monitor-multiple-firebase-projects/</loc>
+    <lastmod>2026-07-24</lastmod>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Comparison pages: commercial intent. -->
   <url>
     <loc>https://aerie-dashboard-app.web.app/compare/firebase-console/</loc>
     <lastmod>2026-07-24</lastmod>

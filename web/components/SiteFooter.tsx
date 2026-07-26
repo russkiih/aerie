@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TOOLS, COMPARISONS, GITHUB_URL } from "@/lib/site-nav";
+import { TOOLS, COMPARISONS, POSTS, GITHUB_URL } from "@/lib/site-nav";
 
 // One footer for every page — landing, tools and comparisons. It carries the
 // full internal link graph on purpose: every page linking to every other page
@@ -8,7 +8,7 @@ import { TOOLS, COMPARISONS, GITHUB_URL } from "@/lib/site-nav";
 export function SiteFooter() {
   return (
     <footer className="mt-24 border-t border-line pt-10 sm:mt-32">
-      <div className="grid gap-8 sm:grid-cols-3">
+      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[.1em] text-fainter">
             Free tools
@@ -42,6 +42,32 @@ export function SiteFooter() {
                 </Link>
               </li>
             ))}
+          </ul>
+        </div>
+
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[.1em] text-fainter">
+            Writing
+          </div>
+          <ul className="mt-3 space-y-2">
+            {POSTS.slice(0, 3).map((p) => (
+              <li key={p.href}>
+                <Link
+                  href={p.href}
+                  className="text-[13px] leading-snug text-muted hover:text-ink"
+                >
+                  {p.label}
+                </Link>
+              </li>
+            ))}
+            <li>
+              <Link
+                href="/blog/"
+                className="text-[13px] font-medium text-faint hover:text-ink"
+              >
+                All posts →
+              </Link>
+            </li>
           </ul>
         </div>
 
