@@ -392,61 +392,6 @@ await page.evaluate(() => {
 await page.reload();
 await page.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
 
-// "+N new users since you last checked" badge on the project cards.
-//
-// Storage is localStorage (deliberately — a server-side baseline would break
-// the "stores nothing but your email and plan" promise), so the harness seeds
-// the baseline directly rather than waiting a day.
-const BADGE = /new since you last checked/;
-console.log(
-  (await page.getByTitle(BADGE).count()) === 0
-    ? "OK  no delta badge on a first-ever sighting"
-    : "MISSING first sight must be silent (badge shown with no baseline)"
-);
-
-// Pretend yesterday's visit saw 828 of the fixture's 830 users.
-await page.evaluate(() => {
-  const d = new Date(Date.now() - 86400000);
-  const p = (n) => String(n).padStart(2, "0");
-  localStorage.setItem(
-    "aerie_user_baselines_v1",
-    JSON.stringify({
-      "takeoffconvert-prod": {
-        baseline: 828,
-        lastSeenCount: 828,
-        lastSeenDay: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`,
-      },
-    })
-  );
-});
-await page.reload();
-await page.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
-console.log(
-  (await page.getByTitle("2 new since you last checked").count()) > 0
-    ? "OK  delta badge shows +2 against yesterday's baseline"
-    : "MISSING +2 delta badge"
-);
-await page
-  .locator('div[role="button"]')
-  .filter({ hasText: "TakeoffConvert" })
-  .first()
-  .screenshot({ path: "delta-badge.png" });
-
-// The regression the two-field storage model exists to prevent: refreshing on
-// the same day must not consume the badge.
-await page.reload();
-await page.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
-console.log(
-  (await page.getByTitle("2 new since you last checked").count()) > 0
-    ? "OK  same-day reload keeps the delta badge"
-    : "MISSING badge survived reload (baseline advanced too early)"
-);
-
-// Leave the rest of the suite on a clean, badge-free load.
-await page.evaluate(() => localStorage.removeItem("aerie_user_baselines_v1"));
-await page.reload();
-await page.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
-
 // free-tier gating (cloud builds only: NEXT_PUBLIC_AERIE_CLOUD=1) — fresh
 // accounts land on Free; a locked range opens the upgrade modal; unlocking
 // flips to Pro and the rest of the suite runs ungated.
@@ -512,12 +457,14 @@ MOCK_CHECKOUT_FAILS = false;
 await page.getByRole("button", { name: /Start 7-day trial/ }).click();
 await page.waitForURL(/checkout\.stripe\.com/, { timeout: 10000 });
 console.log("OK  retry after failure reaches Stripe");
-await page.goBack();
-await page.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
-
-// entitlement flips server-side, so Pro arrives via the backend + a reload
+// Fresh navigation rather than goBack() + reload(). Coming back from the real
+// checkout.stripe.com and then reloading restores this page from the
+// back-forward cache, and against the live origin that intermittently crashes
+// the renderer ("page.reload: Page crashed") several assertions later — the
+// failure looked like a bug in whatever ran next. A clean goto costs one page
+// load and removes the flake.
 MOCK_TIER = "pro";
-await page.reload();
+await page.goto(TARGET);
 await page.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
 // Entitlement arrives asynchronously (mint an identity token, then call
 // /tier), so wait for the free pill to clear rather than sampling the instant
@@ -690,5 +637,77 @@ const section = page
   .filter({ has: page.getByText("Breakdowns") })
   .last();
 await section.screenshot({ path: "live-sources-panels.png" });
+// "+N new users since you last checked" badge on the project cards.
+//
+// Storage is localStorage (deliberately — a server-side baseline would break
+// the "stores nothing but your email and plan" promise), so the harness seeds
+// the baseline directly rather than waiting a day.
+//
+// This runs on a throwaway page that is closed afterwards. The checks need
+// repeated reloads to prove the badge survives one, and against the live
+// origin — which loads Google Identity Services and Stripe.js on every load,
+// unlike a local static build — that much reloading destabilises the renderer
+// and crashes it several steps later, in the checkout section. Isolating the
+// reloads keeps the cost contained instead of leaving a delayed landmine for
+// whoever next touches this file.
+{
+  const dp = await ctx.newPage();
+  await dp.goto(TARGET);
+  await dp.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
+
+  // The main page's load already banked a baseline for this origin, so clear
+  // it to get a genuine never-seen-before state.
+  await dp.evaluate(() => localStorage.removeItem("aerie_user_baselines_v1"));
+  await dp.reload();
+  await dp.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
+  console.log(
+    (await dp.getByTitle(/new since you last checked/).count()) === 0
+      ? "OK  no delta badge on a first-ever sighting"
+      : "MISSING first sight must be silent (badge shown with no baseline)"
+  );
+
+  // Pretend yesterday's visit saw 828 of the fixture's 830 users.
+  await dp.evaluate(() => {
+    const d = new Date(Date.now() - 86400000);
+    const p = (n) => String(n).padStart(2, "0");
+    localStorage.setItem(
+      "aerie_user_baselines_v1",
+      JSON.stringify({
+        "takeoffconvert-prod": {
+          baseline: 828,
+          lastSeenCount: 828,
+          lastSeenDay: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`,
+        },
+      })
+    );
+  });
+  await dp.reload();
+  await dp.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
+  console.log(
+    (await dp.getByTitle("2 new since you last checked").count()) > 0
+      ? "OK  delta badge shows +2 against yesterday's baseline"
+      : "MISSING +2 delta badge"
+  );
+  await dp
+    .locator('div[role="button"]')
+    .filter({ hasText: "TakeoffConvert" })
+    .first()
+    .screenshot({ path: "delta-badge.png" });
+
+  // The regression the two-field storage model exists to prevent: refreshing
+  // on the same day must not consume the badge.
+  await dp.reload();
+  await dp.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
+  console.log(
+    (await dp.getByTitle("2 new since you last checked").count()) > 0
+      ? "OK  same-day reload keeps the delta badge"
+      : "MISSING badge survived reload (baseline advanced too early)"
+  );
+
+  // localStorage is shared across pages on this origin — leave it clean.
+  await dp.evaluate(() => localStorage.removeItem("aerie_user_baselines_v1"));
+  await dp.close();
+}
+
 console.log("DONE");
 await browser.close();
