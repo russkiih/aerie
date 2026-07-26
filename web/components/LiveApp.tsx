@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { SiteFooter } from "@/components/SiteFooter";
+import { recordUserCounts } from "@/lib/user-deltas";
 import {
   requestToken,
   isConfigured,
@@ -361,7 +362,25 @@ export default function LiveApp() {
   const [tier, setTier] = useState<Tier>(initialTier());
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [upgradeError, setUpgradeError] = useState("");
+  const [userDeltas, setUserDeltas] = useState<Record<string, number>>({});
   const pro = tier === "pro";
+
+  // "+N since you last looked" badges. This runs once per completed load, not
+  // during render, because it writes the new baselines to localStorage —
+  // doing it in render would advance the baseline on every re-render and the
+  // badge would flicker away as soon as you sorted or typed in the filter.
+  //
+  // It deliberately waits for "ready" rather than reacting to `projects` as it
+  // streams in: a half-loaded list would bank a baseline for the projects that
+  // arrived first and, worse, projects still in flight look like they have no
+  // user count yet.
+  useEffect(() => {
+    if (phase !== "ready") return;
+    setUserDeltas(recordUserCounts(projects));
+    // `projects` is intentionally not a dependency — a single-project retry
+    // must not re-bank baselines for everything else.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   // Entitlement follows the signed-in identity, so it is re-checked whenever
   // the token changes — including the return trip from Stripe Checkout, which
@@ -904,7 +923,11 @@ export default function LiveApp() {
                     </button>
                   )}
                   <div className="grid grid-cols-3 gap-2 border-t border-line2 pt-3.5">
-                    <Mini label="Users" value={p.userCount} />
+                    <Mini
+                      label="Users"
+                      value={p.userCount}
+                      delta={userDeltas[p.id]}
+                    />
                     <Mini
                       label="Docs"
                       value={p.firestore ? p.firestore.totalDocuments : null}
@@ -1368,22 +1391,40 @@ function Mini({
   label,
   value,
   accent = false,
+  delta,
 }: {
   label: string;
   value: number | null;
   accent?: boolean;
+  /** Growth since the last day you looked. Omit or 0 to render no badge. */
+  delta?: number;
 }) {
   return (
     <div>
       <div className="text-[9.5px] font-semibold uppercase tracking-[.08em] text-faint">
         {label}
       </div>
-      <div
-        className={`mt-[5px] text-lg font-semibold tracking-[-.02em] tabular-nums ${
-          accent ? "text-accent" : "text-ink"
-        }`}
-      >
-        {value === null || value === undefined ? "—" : compact(value)}
+      <div className="mt-[5px] flex items-baseline gap-1.5">
+        <span
+          className={`text-lg font-semibold tracking-[-.02em] tabular-nums ${
+            accent ? "text-accent" : "text-ink"
+          }`}
+        >
+          {value === null || value === undefined ? "—" : compact(value)}
+        </span>
+        {delta ? (
+          // Spelled out for screen readers — "+2" alone reads as meaningless
+          // next to a number that is itself already a count.
+          <span
+            title={`${delta.toLocaleString()} new since you last checked`}
+            className="rounded-full bg-accent/10 px-1.5 py-px text-[10px] font-semibold leading-[15px] tabular-nums text-accent"
+          >
+            <span aria-hidden="true">+{compact(delta)}</span>
+            <span className="sr-only">
+              {delta.toLocaleString()} new since you last checked
+            </span>
+          </span>
+        ) : null}
       </div>
     </div>
   );

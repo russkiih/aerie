@@ -365,11 +365,15 @@ await ctx.route(/cloudfunctions\.net\/analyst/, async (route) => {
 
 // logged-out pass: the landing page (hero, pricing, GitHub CTAs)
 await page.goto(TARGET);
-await page.waitForSelector("text=One dashboard for every Firebase project", { timeout: 20000 });
+// Headline and CTA text below track the landing rebuild that moved the
+// branded page to the site root — updated here so the suite fails on real
+// regressions rather than on copy this repo deliberately changed.
+await page.waitForSelector("text=Stop checking Firebase one project at a time.", { timeout: 20000 });
 for (const needle of [
-  "Self-host on GitHub",
+  "Deploy from GitHub ↗",
+  "Read the source ↗",
   "Free forever if you self-host",
-  "Simple pricing",
+  "Free for three projects",
   "billed yearly",
   "7-day free trial",
   "$19 month-to-month",
@@ -385,6 +389,61 @@ await page.screenshot({ path: "landing.png", fullPage: true });
 await page.evaluate(() => {
   localStorage.setItem("aerie_token_v3", JSON.stringify({ token: "mock", exp: Date.now() + 3600000 }));
 });
+await page.reload();
+await page.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
+
+// "+N new users since you last checked" badge on the project cards.
+//
+// Storage is localStorage (deliberately — a server-side baseline would break
+// the "stores nothing but your email and plan" promise), so the harness seeds
+// the baseline directly rather than waiting a day.
+const BADGE = /new since you last checked/;
+console.log(
+  (await page.getByTitle(BADGE).count()) === 0
+    ? "OK  no delta badge on a first-ever sighting"
+    : "MISSING first sight must be silent (badge shown with no baseline)"
+);
+
+// Pretend yesterday's visit saw 828 of the fixture's 830 users.
+await page.evaluate(() => {
+  const d = new Date(Date.now() - 86400000);
+  const p = (n) => String(n).padStart(2, "0");
+  localStorage.setItem(
+    "aerie_user_baselines_v1",
+    JSON.stringify({
+      "takeoffconvert-prod": {
+        baseline: 828,
+        lastSeenCount: 828,
+        lastSeenDay: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`,
+      },
+    })
+  );
+});
+await page.reload();
+await page.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
+console.log(
+  (await page.getByTitle("2 new since you last checked").count()) > 0
+    ? "OK  delta badge shows +2 against yesterday's baseline"
+    : "MISSING +2 delta badge"
+);
+await page
+  .locator('div[role="button"]')
+  .filter({ hasText: "TakeoffConvert" })
+  .first()
+  .screenshot({ path: "delta-badge.png" });
+
+// The regression the two-field storage model exists to prevent: refreshing on
+// the same day must not consume the badge.
+await page.reload();
+await page.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
+console.log(
+  (await page.getByTitle("2 new since you last checked").count()) > 0
+    ? "OK  same-day reload keeps the delta badge"
+    : "MISSING badge survived reload (baseline advanced too early)"
+);
+
+// Leave the rest of the suite on a clean, badge-free load.
+await page.evaluate(() => localStorage.removeItem("aerie_user_baselines_v1"));
 await page.reload();
 await page.waitForSelector("text=TakeoffConvert", { timeout: 20000 });
 
