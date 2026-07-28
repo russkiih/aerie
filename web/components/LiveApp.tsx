@@ -1413,11 +1413,17 @@ function Mini({
           {value === null || value === undefined ? "—" : compact(value)}
         </span>
         {delta ? (
+          // Solid accent, not a tinted wash. The first version used
+          // bg-accent/10 with 10px text and it was genuinely easy to miss on a
+          // dark card — a "look, this changed" marker that you have to be told
+          // to look for does not do its job. This is the one thing on the card
+          // that is new information, so it gets the loudest treatment on it.
+          //
           // Spelled out for screen readers — "+2" alone reads as meaningless
           // next to a number that is itself already a count.
           <span
             title={`${delta.toLocaleString()} new since you last checked`}
-            className="rounded-full bg-accent/10 px-1.5 py-px text-[10px] font-semibold leading-[15px] tabular-nums text-accent"
+            className="rounded-full bg-accent px-[7px] py-[2px] text-[11px] font-bold leading-[15px] tabular-nums text-[#1c1714] shadow-[0_0_0_3px_rgba(217,119,87,.14)]"
           >
             <span aria-hidden="true">+{compact(delta)}</span>
             <span className="sr-only">
