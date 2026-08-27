@@ -1,3 +1,4 @@
+import autopilotRaw from "./blog-autopilot.json";
 // Single source of truth for site-wide navigation.
 //
 // The footer, the tool cross-links and the comparison cross-links all read
@@ -65,7 +66,7 @@ export type Post = NavItem & {
 // Posts are ordered newest first; the blog index and the "keep reading"
 // cards both read this order. Each post exists to answer one informational
 // question and hand the reader the tool that answers it for their own numbers.
-export const POSTS: Post[] = [
+const STATIC_POSTS: Post[] = [
   {
     href: "/blog/firebase-spending-limit/",
     label: "Firebase has no spending limit. Here's the closest you can get.",
@@ -132,3 +133,10 @@ export const POSTS: Post[] = [
 ];
 
 export const GITHUB_URL = "https://github.com/russkiih/aerie";
+
+// Posts published by the Blog Autopilot (content/autopilot/*.md → blog-autopilot.json on prebuild),
+// newest first, ahead of the hand-written posts. See app/blog/[slug]/page.tsx.
+const AUTOPILOT_POSTS: Post[] = (autopilotRaw as (Post & { slug: string; html: string })[]).map(
+  ({ href, label, blurb, published, publishedLabel, readingMinutes }) => ({ href, label, blurb, published, publishedLabel, readingMinutes }),
+);
+export const POSTS: Post[] = [...AUTOPILOT_POSTS, ...STATIC_POSTS];
