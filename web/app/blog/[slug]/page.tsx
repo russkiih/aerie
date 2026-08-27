@@ -13,13 +13,17 @@ const SITE = "https://aerie-dashboard-app.web.app";
 
 export const dynamicParams = false;
 
+// `output: export` refuses an empty param list, so with no posts yet we emit one unlinked,
+// noindex placeholder page instead of failing the build.
+const PLACEHOLDER = "coming-soon";
+
 export function generateStaticParams(): { slug: string }[] {
-  return POSTS.map((p) => ({ slug: p.slug }));
+  return POSTS.length ? POSTS.map((p) => ({ slug: p.slug })) : [{ slug: PLACEHOLDER }];
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const post = POSTS.find((p) => p.slug === params.slug);
-  if (!post) return { title: "Post not found" };
+  if (!post) return { title: "Coming soon | Aerie Blog", robots: { index: false, follow: false } };
   return {
     title: `${post.label} | Aerie Blog`,
     description: post.blurb,
@@ -30,6 +34,13 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
 export default function AutopilotPostPage({ params }: { params: { slug: string } }) {
   const post = POSTS.find((p) => p.slug === params.slug);
+  if (!post && params.slug === PLACEHOLDER) {
+    return (
+      <PostLayout post={{ href: `/blog/${PLACEHOLDER}/`, label: "More posts are on the way.", blurb: "New notes on Firebase cost and monitoring publish here on a schedule.", published: "2026-08-27", publishedLabel: "27 August 2026" }}>
+        <p className="mt-5 text-[15.5px] leading-[1.75] text-muted">Check the <a className="underline text-ink" href="/blog/">blog index</a> for everything published so far.</p>
+      </PostLayout>
+    );
+  }
   if (!post) notFound();
   return (
     <PostLayout post={post}>
