@@ -120,7 +120,13 @@ async function verifiedEmail(accessToken) {
 // this backend; Firestore rules deny all client access (see firestore.rules).
 const subDoc = (email) => db.collection("subscriptions").doc(email);
 
-const isPro = (status) => status === "active" || status === "trialing";
+// Pro = a live Stripe subscription, or a hand-set `comp: true` on the doc
+// (complimentary/owner access). The webhook writes with merge and never
+// touches `comp`, so a comp grant survives any later Stripe status change.
+const isPro = (d) =>
+  Boolean(
+    d && (d.status === "active" || d.status === "trialing" || d.comp === true)
+  );
 
 // ── tier ────────────────────────────────────────────────────────────────────
 // The dashboard's read path. Returns the caller's current entitlement.
@@ -133,7 +139,7 @@ exports.tier = onRequest(
       const snap = await subDoc(email).get();
       const d = snap.exists ? snap.data() : null;
       res.json({
-        tier: d && isPro(d.status) ? "pro" : "free",
+        tier: isPro(d) ? "pro" : "free",
         status: d ? d.status : null,
         plan: d ? d.plan || null : null,
         currentPeriodEnd: d ? d.currentPeriodEnd || null : null,
@@ -237,7 +243,7 @@ exports.analyst = onRequest(
       reserved = await db.runTransaction(async (tx) => {
         const snap = await tx.get(ref);
         const d = snap.exists ? snap.data() : null;
-        if (!d || !isPro(d.status)) {
+        if (!isPro(d)) {
           return { pro: false };
         }
         const q = reserveQuota(d, period, ANALYST_CAP);
