@@ -67,6 +67,33 @@ export type Post = NavItem & {
 // question and hand the reader the tool that answers it for their own numbers.
 export const POSTS: Post[] = [
   {
+    href: "/blog/firebase-spending-limit/",
+    label: "Firebase has no spending limit. Here's the closest you can get.",
+    blurb:
+      "Budget alerts don't stop anything, and the data they fire on lags real usage. What a budget can and cannot do, and the documented kill-switch pattern for people who need a hard stop.",
+    published: "2026-08-27",
+    publishedLabel: "27 August 2026",
+    readingMinutes: 6,
+  },
+  {
+    href: "/blog/firebase-free-tier-how-many-users/",
+    label: "How many users can the Firebase free tier handle?",
+    blurb:
+      "The quotas are per operation, not per user — so the honest answer runs from about a hundred daily users to a few thousand, and the arithmetic below places your app inside that range.",
+    published: "2026-08-27",
+    publishedLabel: "27 August 2026",
+    readingMinutes: 5,
+  },
+  {
+    href: "/blog/reduce-firestore-reads/",
+    label: "How to reduce Firestore reads",
+    blurb:
+      "Six patterns that cut real bills — result limits, listeners instead of polling, offline persistence, aggregation queries and counter documents — each priced at Google's published rates.",
+    published: "2026-08-27",
+    publishedLabel: "27 August 2026",
+    readingMinutes: 7,
+  },
+  {
     href: "/blog/why-is-my-firebase-bill-so-high/",
     label: "Why is my Firebase bill so high?",
     blurb:

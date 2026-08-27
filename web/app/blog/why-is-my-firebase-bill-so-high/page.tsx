@@ -13,7 +13,9 @@ import { POSTS } from "@/lib/site-nav";
 import { FIRESTORE, VERIFIED_ON, usd } from "@/lib/firebase-pricing";
 
 const SITE = "https://aerie-dashboard-app.web.app";
-const POST = POSTS[0];
+const POST = POSTS.find(
+  (p) => p.href === "/blog/why-is-my-firebase-bill-so-high/"
+)!;
 
 export const metadata: Metadata = {
   title: "Why is my Firebase bill so high? | Aerie",

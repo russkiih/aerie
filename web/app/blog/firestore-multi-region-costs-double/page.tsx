@@ -18,7 +18,9 @@ import {
 } from "@/lib/firebase-pricing";
 
 const SITE = "https://aerie-dashboard-app.web.app";
-const POST = POSTS[1];
+const POST = POSTS.find(
+  (p) => p.href === "/blog/firestore-multi-region-costs-double/"
+)!;
 
 export const metadata: Metadata = {
   title: "Firestore multi-region costs exactly double | Aerie",
