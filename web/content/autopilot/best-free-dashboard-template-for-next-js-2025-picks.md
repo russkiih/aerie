@@ -1,7 +1,7 @@
 ---
-title: "Best Free Dashboard Template for Next.js (2025 Picks)"
-excerpt: "A practical comparison of the best free Next.js dashboard templates in 2025, covering UI libraries, licensing, Firebase integration, and what to check first."
-date: 2026-09-07
+title: "Best Free Dashboard Template for Next.js (2026 Picks)"
+excerpt: "A practical comparison of the best free Next.js dashboard templates in 2026, covering UI libraries, licensing, Firebase integration, and what to check first."
+date: 2026-11-14
 slug: "best-free-dashboard-template-for-next-js-2025-picks"
 tags:
   - "best free dashboard template next js"
@@ -13,7 +13,7 @@ tags:
 
 Every Next.js project eventually needs an admin panel, internal tool, or customer-facing dashboard. Building one from scratch means wiring up layout, navigation, charts, tables, and auth screens before you write a single line of actual business logic. A good free template skips that setup and gets you to real work faster.
 
-This post rounds up the free Next.js dashboard templates worth using in 2025, what to check before you commit to one, and where they fit if your backend is Firebase.
+This post rounds up the free Next.js dashboard templates worth using in 2026, what to check before you commit to one, and where they fit if your backend is Firebase.
 
 ## What to Look for in a Free Next.js Dashboard Template
 
@@ -26,7 +26,7 @@ Not all "free" templates are equal. Some are genuinely MIT-licensed and producti
 - **Auth scaffolding.** Even a basic login/logout flow saves hours, especially if it's already structured to swap in your own auth provider.
 - **Maintenance activity.** A template with no commits in two years may not work cleanly with the current Next.js major version.
 
-## The Best Free Next.js Dashboard Templates in 2025
+## The Best Free Next.js Dashboard Templates in 2026
 
 ### 1. shadcn/ui Admin Dashboard Blocks
 
