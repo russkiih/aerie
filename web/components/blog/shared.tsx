@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Logo } from "@/components/ui";
 import { SiteFooter } from "@/components/SiteFooter";
 import { POSTS, TOOLS, GITHUB_URL, type Post } from "@/lib/site-nav";
+import { serializeJsonLd } from "@/lib/jsonld";
 
 // Shared shell for /blog and /blog/*. Every post uses PostLayout so the
 // header, prose rhythm, schema and footer can only be defined once.
@@ -183,10 +184,10 @@ export function PostLayout({
 
   return (
     <div className="mx-auto w-full max-w-3xl px-5 pb-20 pt-6 sm:px-8">
-      {/* Static constant, no user input — same pattern as layout.tsx. */}
+      {/* Escaped by serializeJsonLd: post fields (incl. coverImage) come from frontmatter. */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(ld) }}
       />
       <BlogHeader />
 

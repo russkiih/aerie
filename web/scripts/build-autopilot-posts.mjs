@@ -44,12 +44,26 @@ const publishedLabel = (iso) => {
   return Number.isNaN(d.getTime()) ? String(iso) : d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 };
 
+// Accept only https://blogkeeping.com/api/v1/card/... ; returns the normalized URL or undefined.
+function blogkeepingCardUrl(value) {
+  if (typeof value !== "string") return undefined;
+  let u;
+  try {
+    u = new URL(value.trim());
+  } catch {
+    return undefined;
+  }
+  if (u.protocol !== "https:" || u.host !== "blogkeeping.com" || !u.pathname.startsWith("/api/v1/card/")) return undefined;
+  return u.href;
+}
+
 const posts = [];
 if (existsSync(srcDir)) {
   for (const file of readdirSync(srcDir).filter((f) => f.endsWith(".md") && !/^readme\.md$/i.test(f)).sort()) {
     const { meta, body } = parseFrontmatter(readFileSync(join(srcDir, file), "utf8"));
     const slug = meta.slug || file.replace(/\.md$/, "");
     const words = body.split(/\s+/).filter(Boolean).length;
+    const coverImage = blogkeepingCardUrl(meta.coverImage);
     posts.push({
       slug,
       href: `/blog/${slug}/`,
@@ -59,8 +73,8 @@ if (existsSync(srcDir)) {
       publishedLabel: publishedLabel(meta.date ?? ""),
       readingMinutes: Math.max(1, Math.round(words / 230)),
       html: marked.parse(body, { async: false }),
-      // Blogkeeping's 1200x630 title card; only http(s) URLs, omitted when absent.
-      ...(typeof meta.coverImage === "string" && /^https?:\/\//.test(meta.coverImage) ? { coverImage: meta.coverImage } : {}),
+      // Blogkeeping's 1200x630 title card; anything but a blogkeeping.com card URL is dropped.
+      ...(coverImage ? { coverImage } : {}),
     });
   }
 }

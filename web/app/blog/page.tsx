@@ -3,6 +3,7 @@ import Link from "next/link";
 import { BlogHeader } from "@/components/blog/shared";
 import { SiteFooter } from "@/components/SiteFooter";
 import { POSTS } from "@/lib/site-nav";
+import { serializeJsonLd } from "@/lib/jsonld";
 
 export const metadata: Metadata = {
   title: "Firebase Cost & Monitoring Notes | Aerie Blog",
@@ -40,7 +41,7 @@ export default function BlogIndex() {
       {/* Static constant, no user input — same pattern as layout.tsx. */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(LD) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(LD) }}
       />
       <BlogHeader />
 

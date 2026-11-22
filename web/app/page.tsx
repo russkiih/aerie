@@ -1,4 +1,5 @@
 import LiveApp from "@/components/LiveApp";
+import { serializeJsonLd } from "@/lib/jsonld";
 
 // FAQPage for the landing only. These six questions mirror the FAQ section
 // rendered in LiveApp's Landing component verbatim — structured data must
@@ -64,7 +65,7 @@ export default function HomePage() {
       {/* Static constant, no user input — see the note in layout.tsx. */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_LD) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(FAQ_LD) }}
       />
       <LiveApp />
     </>

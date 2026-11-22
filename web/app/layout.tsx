@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { serializeJsonLd } from "@/lib/jsonld";
 
 const sans = Hanken_Grotesk({
   subsets: ["latin"],
@@ -87,7 +88,7 @@ export default function RootLayout({
             sequence. This is Next's documented pattern for structured data. */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(JSON_LD) }}
         />
       </head>
       <body className="min-h-screen font-sans">{children}</body>

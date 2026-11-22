@@ -11,6 +11,7 @@ import {
   ClosingCta,
   CrossLinks,
 } from "@/components/compare/shared";
+import { serializeJsonLd } from "@/lib/jsonld";
 
 const SITE = "https://aerie-dashboard-app.web.app";
 const PATH = "/compare/firebase-console/";
@@ -73,7 +74,7 @@ export default function Page() {
     <PageShell>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(JSON_LD) }}
       />
       <CompareHeader />
 
