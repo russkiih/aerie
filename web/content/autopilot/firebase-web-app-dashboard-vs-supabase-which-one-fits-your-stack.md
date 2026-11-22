@@ -10,6 +10,7 @@ tags:
   - "supabase dashboard"
   - "firebase cost monitoring"
   - "multi-project firebase dashboard"
+coverImage: "https://blogkeeping.com/api/v1/card/W07nGnioenpWN7UFrlPW/EgGPqTRECDdA17JO861p.png?v=agb8tp"
 ---
 
 Choosing between Firebase and Supabase usually comes down to more than database preference. It's about how easy each platform makes it to actually run your app day to day — track spend, watch usage climb toward quota limits, manage auth, and debug issues without digging through five different screens. Both platforms ship a dashboard, but the dashboards reflect very different philosophies: Firebase is a collection of managed services stitched together under one console, while Supabase is built around a single Postgres database with a more unified admin panel wrapped around it.

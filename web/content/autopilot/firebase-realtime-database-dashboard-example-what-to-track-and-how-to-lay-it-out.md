@@ -10,6 +10,7 @@ tags:
   - "firebase multi-project monitoring"
   - "firebase realtime database bandwidth"
   - "firebase quota tracking"
+coverImage: "https://blogkeeping.com/api/v1/card/W07nGnioenpWN7UFrlPW/Vm15ePOINH0VRb3iJYOf.png?v=wotczp"
 ---
 
 If you run a Firebase project with the Realtime Database, you already know the built-in console gives you numbers but not much context. You see storage size and bandwidth, but not how those numbers trend against your plan, your quota, or last week's traffic. This post walks through what a useful Realtime Database dashboard actually looks like, with a concrete example layout you can copy for your own project.

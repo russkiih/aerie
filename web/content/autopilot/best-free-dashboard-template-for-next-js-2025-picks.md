@@ -9,6 +9,7 @@ tags:
   - "free next js admin template"
   - "next js firebase dashboard"
   - "react dashboard template free"
+coverImage: "https://blogkeeping.com/api/v1/card/W07nGnioenpWN7UFrlPW/SuEq31grapRE051NefNy.png?v=4mmky3"
 ---
 
 Every Next.js project eventually needs an admin panel, internal tool, or customer-facing dashboard. Building one from scratch means wiring up layout, navigation, charts, tables, and auth screens before you write a single line of actual business logic. A good free template skips that setup and gets you to real work faster.

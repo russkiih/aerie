@@ -10,6 +10,7 @@ tags:
   - "firestore cost tracking"
   - "firebase budget alerts"
   - "multi-project firebase dashboard"
+coverImage: "https://blogkeeping.com/api/v1/card/W07nGnioenpWN7UFrlPW/sxl4pVlgcFPLfPSMa3N7.png?v=14llr5j"
 ---
 
 Firestore doesn't come with a single screen that shows reads, writes, deletes, storage, and cost together. You have to piece it together from the Firebase console, Cloud Monitoring, and the billing dashboard. This tutorial walks through building that view step by step, using the tools you already have, so you can catch a runaway read loop before it becomes a $400 surprise.
