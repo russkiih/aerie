@@ -59,6 +59,8 @@ if (existsSync(srcDir)) {
       publishedLabel: publishedLabel(meta.date ?? ""),
       readingMinutes: Math.max(1, Math.round(words / 230)),
       html: marked.parse(body, { async: false }),
+      // Blogkeeping's 1200x630 title card; only http(s) URLs, omitted when absent.
+      ...(typeof meta.coverImage === "string" && /^https?:\/\//.test(meta.coverImage) ? { coverImage: meta.coverImage } : {}),
     });
   }
 }

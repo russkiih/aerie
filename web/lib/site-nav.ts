@@ -61,6 +61,8 @@ export type Post = NavItem & {
   published: string;
   publishedLabel: string;
   readingMinutes?: number;
+  /** Optional 1200x630 hero / social card (Blogkeeping `coverImage` frontmatter). */
+  coverImage?: string;
 };
 
 // Posts are ordered newest first; the blog index and the "keep reading"

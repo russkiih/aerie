@@ -178,6 +178,7 @@ export function PostLayout({
       "@type": "WebPage",
       "@id": `https://aerie-dashboard-app.web.app${post.href}`,
     },
+    ...(post.coverImage ? { image: post.coverImage } : {}),
   };
 
   return (
@@ -200,6 +201,19 @@ export function PostLayout({
         <p className="mt-5 text-[17px] leading-relaxed text-muted">
           {post.blurb}
         </p>
+        {post.coverImage ? (
+          // Plain <img>: the site is a static export with unoptimized images.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={post.coverImage}
+            alt={post.label}
+            width={1200}
+            height={630}
+            loading="eager"
+            decoding="async"
+            className="mt-8 block aspect-[1200/630] h-auto w-full rounded-[13px] border border-line bg-panel object-cover"
+          />
+        ) : null}
         <div className="mt-10 border-t border-line pt-2">{children}</div>
       </article>
 
