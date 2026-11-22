@@ -28,7 +28,16 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     title: `${post.label} | Aerie Blog`,
     description: post.blurb,
     alternates: { canonical: post.href },
-    openGraph: { type: "article", url: `${SITE}${post.href}`, title: post.label, description: post.blurb },
+    openGraph: {
+      type: "article",
+      url: `${SITE}${post.href}`,
+      title: post.label,
+      description: post.blurb,
+      ...(post.coverImage ? { images: [{ url: post.coverImage, width: 1200, height: 630, alt: post.label }] } : {}),
+    },
+    ...(post.coverImage
+      ? { twitter: { card: "summary_large_image", title: post.label, description: post.blurb, images: [post.coverImage] } }
+      : {}),
   };
 }
 

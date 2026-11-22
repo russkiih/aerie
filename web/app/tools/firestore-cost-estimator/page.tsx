@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ToolShell } from "@/components/tools/shared";
 import Calculator from "./Calculator";
+import { serializeJsonLd } from "@/lib/jsonld";
 
 const SITE = "https://aerie-dashboard-app.web.app";
 const URL = `${SITE}/tools/firestore-cost-estimator/`;
@@ -77,7 +78,7 @@ export default function Page() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(JSON_LD) }}
       />
       <ToolShell
         current="firestore-cost-estimator"
