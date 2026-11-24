@@ -10,7 +10,7 @@ tags:
   - "firebase spark plan limits"
   - "build a personal dashboard with firebase"
   - "firebase firestore free quota"
-coverImage: "https://blogkeeping.com/api/v1/card/W07nGnioenpWN7UFrlPW/ozNiafpgSfrhnxPr0xiX.png?v=vs4nia"
+coverImage: "https://blogkeeping.com/api/v1/card/W07nGnioenpWN7UFrlPW/ozNiafpgSfrhnxPr0xiX.png?v=1xjung3"
 ---
 
 Building a personal dashboard on Firebase Hosting sounds like a zero-cost weekend project, and for most use cases it genuinely is. But "free" on Firebase's Spark plan comes with specific ceilings on storage, transfer, reads, and writes — and a dashboard that polls data on a schedule can bump into them faster than a typical static site. Here's what the free tier actually covers, where a Next.js dashboard tends to burn through it, and when you'll need to flip to the pay-as-you-go plan.

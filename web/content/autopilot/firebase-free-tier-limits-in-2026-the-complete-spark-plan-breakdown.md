@@ -10,7 +10,7 @@ tags:
   - "firebase blaze plan free tier"
   - "firebase hosting free limits"
   - "firebase cloud functions free tier"
-coverImage: "https://blogkeeping.com/api/v1/card/W07nGnioenpWN7UFrlPW/pxVVYSFkc3WiUUMqWBUW.png?v=1l0ttuu"
+coverImage: "https://blogkeeping.com/api/v1/card/W07nGnioenpWN7UFrlPW/pxVVYSFkc3WiUUMqWBUW.png?v=14ktrgv"
 ---
 
 Firebase's free tier hasn't changed dramatically in structure over the past few years, but the exact numbers, eligibility rules, and which services even qualify for "free" shift often enough that it's easy to plan around stale information. This post walks through the actual Spark plan limits as they stand in 2026, plus the no-cost quotas that still apply once you move to Blaze.
