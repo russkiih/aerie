@@ -57,6 +57,48 @@ function blogkeepingCardUrl(value) {
   return u.href;
 }
 
+// Blogkeeping writes the FAQ into the post body as a "## FAQ" (or "Frequently asked questions")
+// section: each question is a bold line (or a ### heading) followed by its answer paragraphs.
+// Returns plain-text { question, answer } pairs that match the visible, rendered section.
+function extractFaq(markdown) {
+  const lines = String(markdown ?? "").split(/\r?\n/);
+  const start = lines.findIndex((l) => /^##\s+(faqs?|frequently asked questions)\s*:?\s*$/i.test(l.trim()));
+  if (start < 0) return [];
+  const items = [];
+  let cur = null;
+  for (const raw of lines.slice(start + 1)) {
+    const line = raw.trim();
+    if (/^#{1,2}\s/.test(line)) break;
+    const heading = /^###\s+(.+)$/.exec(line);
+    const bold = /^\*\*(.+?)\*\*\s*(.*)$/.exec(line);
+    if (heading || (bold && (bold[2] === "" || /\?\s*$/.test(bold[1])))) {
+      cur = { question: faqPlain(heading ? heading[1] : bold[1]), answer: [] };
+      if (bold && bold[2]) cur.answer.push(bold[2]);
+      items.push(cur);
+    } else if (cur && line) {
+      cur.answer.push(line);
+    }
+  }
+  return items
+    .map((i) => ({ question: i.question, answer: faqPlain(i.answer.join(" ")) }))
+    .filter((i) => i.question && i.answer);
+}
+function faqPlain(md) {
+  return md
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/<[^>]+>/g, "")
+    .replace(/^\s*(?:[-*+]|\d+\.|>)\s+/gm, "")
+    .replace(/(\*\*|__|\*|_|`)(.+?)\1/g, "$2")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+// Blogkeeping's optional refresh date; only a real YYYY-MM-DD is kept.
+function isoDate(v) {
+  const s = typeof v === "string" ? v.trim() : "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(new Date(`${s}T00:00:00Z`).getTime()) ? s : undefined;
+}
+
 const posts = [];
 if (existsSync(srcDir)) {
   for (const file of readdirSync(srcDir).filter((f) => f.endsWith(".md") && !/^readme\.md$/i.test(f)).sort()) {
@@ -64,17 +106,24 @@ if (existsSync(srcDir)) {
     const slug = meta.slug || file.replace(/\.md$/, "");
     const words = body.split(/\s+/).filter(Boolean).length;
     const coverImage = blogkeepingCardUrl(meta.coverImage);
+    const published = meta.date ?? "";
+    const updated = isoDate(meta.updatedDate);
+    const faq = extractFaq(body);
     posts.push({
       slug,
       href: `/blog/${slug}/`,
       label: meta.title ?? slug,
       blurb: meta.excerpt ?? meta.description ?? "",
-      published: meta.date ?? "",
-      publishedLabel: publishedLabel(meta.date ?? ""),
+      published,
+      publishedLabel: publishedLabel(published),
+      // Shown as "Updated …" and used for dateModified / sitemap lastmod when it differs.
+      ...(updated && updated !== published ? { updated, updatedLabel: publishedLabel(updated) } : {}),
       readingMinutes: Math.max(1, Math.round(words / 230)),
       html: marked.parse(body, { async: false }),
       // Blogkeeping's 1200x630 title card; anything but a blogkeeping.com card URL is dropped.
       ...(coverImage ? { coverImage } : {}),
+      // Visible "## FAQ" section, as plain text, for FAQPage JSON-LD.
+      ...(faq.length ? { faq } : {}),
     });
   }
 }
@@ -91,7 +140,7 @@ if (existsSync(sitemapPath)) {
     .filter((l) => !l.includes(MARK))
     .join("\n");
   const entries = posts
-    .map((p) => `  <url><loc>https://aerie-dashboard-app.web.app${p.href}</loc><lastmod>${p.published}</lastmod></url>${MARK}`)
+    .map((p) => `  <url><loc>https://aerie-dashboard-app.web.app${p.href}</loc><lastmod>${p.updated || p.published}</lastmod></url>${MARK}`)
     .join("\n");
   writeFileSync(sitemapPath, kept.replace(/<\/urlset>\s*$/, `${entries ? entries + "\n" : ""}</urlset>\n`), "utf8");
 }
