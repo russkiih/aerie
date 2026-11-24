@@ -63,6 +63,11 @@ export type Post = NavItem & {
   readingMinutes?: number;
   /** Optional 1200x630 hero / social card (Blogkeeping `coverImage` frontmatter). */
   coverImage?: string;
+  /** ISO date of the last refresh (Blogkeeping `updatedDate`), set only when it differs from `published`. */
+  updated?: string;
+  updatedLabel?: string;
+  /** Plain-text copy of the post's visible FAQ section; feeds FAQPage JSON-LD. */
+  faq?: { question: string; answer: string }[];
 };
 
 // Posts are ordered newest first; the blog index and the "keep reading"
@@ -139,6 +144,6 @@ export const GITHUB_URL = "https://github.com/russkiih/aerie";
 // Posts published by the Blog Autopilot (content/autopilot/*.md → blog-autopilot.json on prebuild),
 // newest first, ahead of the hand-written posts. See app/blog/[slug]/page.tsx.
 const AUTOPILOT_POSTS: Post[] = (autopilotRaw as (Post & { slug: string; html: string })[]).map(
-  ({ href, label, blurb, published, publishedLabel, readingMinutes }) => ({ href, label, blurb, published, publishedLabel, readingMinutes }),
+  ({ href, label, blurb, published, publishedLabel, readingMinutes, updated, updatedLabel }) => ({ href, label, blurb, published, publishedLabel, readingMinutes, updated, updatedLabel }),
 );
 export const POSTS: Post[] = [...AUTOPILOT_POSTS, ...STATIC_POSTS];

@@ -166,21 +166,37 @@ export function PostLayout({
   post: Post;
   children: React.ReactNode;
 }) {
+  const url = `https://aerie-dashboard-app.web.app${post.href}`;
+  const brand = {
+    "@type": "Organization",
+    name: "Aerie",
+    url: "https://aerie-dashboard-app.web.app/",
+  };
   const ld = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     headline: post.label,
     description: post.blurb,
     datePublished: post.published,
-    dateModified: post.published,
-    author: { "@type": "Organization", name: "Aerie" },
-    publisher: { "@type": "Organization", name: "Aerie" },
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": `https://aerie-dashboard-app.web.app${post.href}`,
-    },
+    dateModified: post.updated || post.published,
+    author: brand,
+    publisher: brand,
+    mainEntityOfPage: { "@type": "WebPage", "@id": url },
+    url,
     ...(post.coverImage ? { image: post.coverImage } : {}),
   };
+  // Only when the post shows an FAQ section: Google requires FAQPage markup to match visible text.
+  const faqLd = post.faq?.length
+    ? {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: post.faq.map((f) => ({
+          "@type": "Question",
+          name: f.question,
+          acceptedAnswer: { "@type": "Answer", text: f.answer },
+        })),
+      }
+    : null;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-5 pb-20 pt-6 sm:px-8">
@@ -189,11 +205,23 @@ export function PostLayout({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(ld) }}
       />
+      {faqLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(faqLd) }}
+        />
+      ) : null}
       <BlogHeader />
 
       <article className="mt-14">
         <div className="text-[12px] font-medium text-faint">
           <time dateTime={post.published}>{post.publishedLabel}</time>
+          {post.updated && post.updated !== post.published ? (
+            <>
+              {" · Updated "}
+              <time dateTime={post.updated}>{post.updatedLabel ?? post.updated}</time>
+            </>
+          ) : null}
           {post.readingMinutes ? ` · ${post.readingMinutes} min read` : null}
         </div>
         <h1 className="mt-3 text-[30px] font-semibold leading-[1.15] tracking-[-.03em] text-ink sm:text-[40px]">
